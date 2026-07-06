@@ -110,11 +110,11 @@ Test: Field E
 
 Tất cả patch từ cùng ảnh gốc phải ở cùng split. Chạy `scripts/audit_dataset.py` trước mỗi experiment.
 
-Nếu dùng `Image_Manifest_Template` từ Google Sheet, export sheet đó thành CSV rồi convert sang manifest chuẩn:
+Nếu dùng `Image_Manifest_Template` từ Google Sheet, đặt workbook hoặc CSV export trong folder knowledge base rồi convert sang manifest chuẩn:
 
 ```bash
 python scripts/convert_image_manifest.py \
-  --input KNOWLEDGE_BASE_SAMPLE/Image_Manifest_Template.csv \
+  --knowledge-root CROPSTATE_KNOWLEDGE_BASE \
   --data-root data \
   --output data/image_manifest.csv
 ```
@@ -300,11 +300,11 @@ Các topic cố định:
 
 Không có câu hỏi tự do. Hệ thống tự chạy retrieval cho từng topic sau khi nhận ảnh.
 
-Nếu dùng `Knowledge_Chunks` từ Google Sheet, export sheet đó thành CSV rồi convert sang JSONL:
+Nếu dùng `Knowledge_Chunks` từ Google Sheet, đặt workbook hoặc CSV export trong folder knowledge base rồi convert sang JSONL:
 
 ```bash
 python scripts/convert_knowledge_base.py \
-  --input KNOWLEDGE_BASE_SAMPLE/Knowledge_Chunks.csv \
+  --knowledge-root CROPSTATE_KNOWLEDGE_BASE \
   --output data/knowledge_chunks.jsonl
 ```
 

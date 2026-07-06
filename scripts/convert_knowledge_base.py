@@ -8,6 +8,8 @@ import pandas as pd
 
 from cropstate.constants import STAGE_NAMES
 
+DEFAULT_WORKBOOK_NAME = "CROPSTATE_Sample_Knowledge_Base.xlsx"
+
 
 COMPATIBILITY_COLUMN_CANDIDATES = {
     "establishment": ["c_establishment", "compatibility_establishment", "stage_compatibility_establishment", "s01_score", "s01"],
@@ -77,13 +79,35 @@ def convert_chunks(input_path: Path) -> list[dict]:
     return chunks
 
 
+def resolve_input(input_path: str | None, knowledge_root: str | None) -> Path:
+    if input_path:
+        return Path(input_path)
+    if not knowledge_root:
+        raise ValueError("Provide --input or --knowledge-root")
+
+    root = Path(knowledge_root)
+    workbook = root / DEFAULT_WORKBOOK_NAME
+    if workbook.exists():
+        return workbook
+
+    csv_path = root / "Knowledge_Chunks.csv"
+    if csv_path.exists():
+        return csv_path
+
+    raise FileNotFoundError(
+        f"Could not find {DEFAULT_WORKBOOK_NAME} or Knowledge_Chunks.csv under {root}"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True, help="CSV export or XLSX workbook containing Knowledge_Chunks sheet.")
+    parser.add_argument("--input", help="CSV export or XLSX workbook containing Knowledge_Chunks sheet.")
+    parser.add_argument("--knowledge-root", help="Folder containing the knowledge-base workbook or exported CSV files.")
     parser.add_argument("--output", default="data/knowledge_chunks.jsonl")
     args = parser.parse_args()
 
-    chunks = convert_chunks(Path(args.input))
+    input_path = resolve_input(args.input, args.knowledge_root)
+    chunks = convert_chunks(input_path)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w") as handle:

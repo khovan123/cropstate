@@ -10,6 +10,7 @@ import pandas as pd
 from cropstate.constants import NON_TRAINING_STAGE_ALIASES, STAGE_ALIASES
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+DEFAULT_WORKBOOK_NAME = "CROPSTATE_Sample_Knowledge_Base.xlsx"
 OUTPUT_COLUMNS = [
     "image_id",
     "image_path",
@@ -192,9 +193,30 @@ def convert_manifest(input_path: Path, data_root: Path, compute_checksum: bool) 
     return train_df, pd.DataFrame(excluded_rows)
 
 
+def resolve_input(input_path: str | None, knowledge_root: str | None) -> Path:
+    if input_path:
+        return Path(input_path)
+    if not knowledge_root:
+        raise ValueError("Provide --input or --knowledge-root")
+
+    root = Path(knowledge_root)
+    workbook = root / DEFAULT_WORKBOOK_NAME
+    if workbook.exists():
+        return workbook
+
+    csv_path = root / "Image_Manifest_Template.csv"
+    if csv_path.exists():
+        return csv_path
+
+    raise FileNotFoundError(
+        f"Could not find {DEFAULT_WORKBOOK_NAME} or Image_Manifest_Template.csv under {root}"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True, help="CSV export or XLSX workbook containing Image_Manifest_Template.")
+    parser.add_argument("--input", help="CSV export or XLSX workbook containing Image_Manifest_Template.")
+    parser.add_argument("--knowledge-root", help="Folder containing the knowledge-base workbook or exported CSV files.")
     parser.add_argument("--data-root", default="data")
     parser.add_argument("--output", default="data/image_manifest.csv")
     parser.add_argument("--excluded-output", default="data/image_manifest_excluded.csv")
@@ -206,7 +228,8 @@ def main():
     output = Path(args.output)
     excluded_output = Path(args.excluded_output)
     duplicate_report = Path(args.duplicate_report)
-    train_df, excluded_df = convert_manifest(Path(args.input), data_root, compute_checksum=not args.no_checksum)
+    input_path = resolve_input(args.input, args.knowledge_root)
+    train_df, excluded_df = convert_manifest(input_path, data_root, compute_checksum=not args.no_checksum)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     train_df.to_csv(output, index=False)
