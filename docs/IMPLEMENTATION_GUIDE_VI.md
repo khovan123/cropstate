@@ -183,6 +183,8 @@ Nếu không đạt, sửa dataset trước khi xây retrieval.
 
 Trên Google Colab, cài package ở chế độ editable rồi fine-tune pretrained model từ các folder stage đã chia sẵn:
 
+Nếu code lấy từ GitHub còn dataset nằm trong Google Drive `CROPSTATE_DATASET`, dùng workflow đầy đủ tại `docs/COLAB_GITHUB_DRIVE_WORKFLOW.md`. Các lệnh dưới đây vẫn dùng được miễn là `--data-root` trỏ đúng tới folder chứa sáu stage.
+
 ```bash
 pip install -r requirements.txt
 pip install -e .

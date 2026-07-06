@@ -34,6 +34,8 @@ python scripts/audit_dataset.py --manifest data/sample_manifest.csv
 
 The six bundled images are **not sufficient to train a scientific six-stage model**. They are included only to test file loading, metadata validation, and leakage checks.
 
+For Google Colab where code is cloned from GitHub and the dataset is stored in Drive under `CROPSTATE_DATASET`, use [docs/COLAB_GITHUB_DRIVE_WORKFLOW.md](docs/COLAB_GITHUB_DRIVE_WORKFLOW.md).
+
 ## Manifest and knowledge-base conversion
 
 If the Google Sheet `Image_Manifest_Template` has been exported as CSV, convert it before training:
