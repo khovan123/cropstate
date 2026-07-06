@@ -1,0 +1,22 @@
+seed: 42
+num_classes: 6
+class_names:
+  - establishment
+  - tillering
+  - stem_booting
+  - reproductive
+  - grain_filling
+  - ripening
+image_size: 224
+batch_size: 32
+epochs: 30
+learning_rate: 0.0003
+backbone_learning_rate: 0.00003
+freeze_backbone_epochs: 3
+weight_decay: 0.0001
+model_name: resnet18
+pretrained: true
+early_stopping_patience: 7
+split_group_column: parent_image_id
+validation_size: 0.15
+test_size: 0.15

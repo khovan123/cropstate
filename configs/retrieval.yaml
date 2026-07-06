@@ -1,0 +1,20 @@
+seed: 42
+candidate_depth: 50
+top_k: 5
+rrf_k0: 60
+beta_min: 0.05
+beta_max: 0.35
+source_weight: 0.10
+fixed_beta: 0.25
+topics:
+  - water_management
+  - nutrient_management
+  - disease_risk
+  - pest_risk
+  - weed_management
+query_templates:
+  water_management: "rice water management guidance"
+  nutrient_management: "rice nutrient management guidance"
+  disease_risk: "rice disease risk and preventive management"
+  pest_risk: "rice pest risk and preventive management"
+  weed_management: "rice weed management guidance"

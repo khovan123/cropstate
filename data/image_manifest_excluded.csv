@@ -1,0 +1,2 @@
+image_id,file_name,drive_url,source_name,source_url,license,parent_image_id,field_id,capture_session,capture_date,region,variety,annotator_1,annotator_2,final_label,usable,split,review_status,original_label,exclude_reason
+IMG_000001,replace_with_file_name.jpg,,,,,PARENT_000001,FIELD_UNKNOWN,SESSION_UNKNOWN,,,unknown,,,uncertain,pending,unassigned,template_only,uncertain,uncertain
