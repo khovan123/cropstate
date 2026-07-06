@@ -2,6 +2,8 @@
 
 Use this notebook flow when the repository is cloned from GitHub while the image dataset and knowledge base live in Google Drive.
 
+You can also import `notebooks/cropstate_colab_github_drive.ipynb` directly into Google Colab.
+
 Expected Drive layout:
 
 ```text
@@ -17,14 +19,14 @@ MyDrive/CROPSTATE_DATASET/
 Expected knowledge-base layout:
 
 ```text
-MyDrive/CROPSTATE_KNOWLEDGE_BASE/
+MyDrive/CROPSTATE_KNOWLEDGE_BASDE/
   CROPSTATE_Sample_Knowledge_Base.xlsx
 ```
 
 The converters also accept CSV exports in the same folder:
 
 ```text
-MyDrive/CROPSTATE_KNOWLEDGE_BASE/
+MyDrive/CROPSTATE_KNOWLEDGE_BASDE/
   Image_Manifest_Template.csv
   Knowledge_Chunks.csv
 ```
@@ -69,7 +71,7 @@ If the repo already exists:
 
 ```python
 DATA_ROOT = "/content/drive/MyDrive/CROPSTATE_DATASET"
-KNOWLEDGE_ROOT = "/content/drive/MyDrive/CROPSTATE_KNOWLEDGE_BASE"
+KNOWLEDGE_ROOT = "/content/drive/MyDrive/CROPSTATE_KNOWLEDGE_BASDE"
 RESULTS_ROOT = "/content/drive/MyDrive/CROPSTATE_RESULTS"
 ```
 

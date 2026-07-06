@@ -34,7 +34,7 @@ python scripts/audit_dataset.py --manifest data/sample_manifest.csv
 
 The six bundled images are **not sufficient to train a scientific six-stage model**. They are included only to test file loading, metadata validation, and leakage checks.
 
-For Google Colab where code is cloned from GitHub, the dataset is stored in Drive under `CROPSTATE_DATASET`, and the knowledge base is stored under `CROPSTATE_KNOWLEDGE_BASE`, use [docs/COLAB_GITHUB_DRIVE_WORKFLOW.md](docs/COLAB_GITHUB_DRIVE_WORKFLOW.md).
+For Google Colab where code is cloned from GitHub, the dataset is stored in Drive under `CROPSTATE_DATASET`, and the knowledge base is stored under `CROPSTATE_KNOWLEDGE_BASDE`, use [docs/COLAB_GITHUB_DRIVE_WORKFLOW.md](docs/COLAB_GITHUB_DRIVE_WORKFLOW.md) or import [notebooks/cropstate_colab_github_drive.ipynb](notebooks/cropstate_colab_github_drive.ipynb).
 
 ## Manifest and knowledge-base conversion
 
@@ -42,7 +42,7 @@ If the Google Sheet workbook or CSV exports are stored in a knowledge-base folde
 
 ```bash
 python scripts/convert_image_manifest.py \
-  --knowledge-root CROPSTATE_KNOWLEDGE_BASE \
+  --knowledge-root CROPSTATE_KNOWLEDGE_BASDE \
   --data-root data \
   --output data/image_manifest.csv
 
@@ -71,7 +71,7 @@ Convert knowledge chunks for retrieval experiments:
 
 ```bash
 python scripts/convert_knowledge_base.py \
-  --knowledge-root CROPSTATE_KNOWLEDGE_BASE \
+  --knowledge-root CROPSTATE_KNOWLEDGE_BASDE \
   --output data/knowledge_chunks.jsonl
 ```
 
