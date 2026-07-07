@@ -114,7 +114,7 @@ Nếu dùng `Image_Manifest_Template` từ Google Sheet, đặt workbook hoặc 
 
 ```bash
 python scripts/convert_image_manifest.py \
-  --knowledge-root CROPSTATE_KNOWLEDGE_BASDE \
+  --knowledge-root CROPSTATE_KNOWLEDGE_BASE \
   --data-root data \
   --output data/image_manifest.csv
 ```
@@ -304,7 +304,7 @@ Nếu dùng `Knowledge_Chunks` từ Google Sheet, đặt workbook hoặc CSV exp
 
 ```bash
 python scripts/convert_knowledge_base.py \
-  --knowledge-root CROPSTATE_KNOWLEDGE_BASDE \
+  --knowledge-root CROPSTATE_KNOWLEDGE_BASE \
   --output data/knowledge_chunks.jsonl
 ```
 

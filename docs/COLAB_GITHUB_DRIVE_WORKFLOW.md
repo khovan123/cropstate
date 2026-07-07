@@ -19,16 +19,18 @@ MyDrive/CROPSTATE_DATASET/
 Expected knowledge-base layout:
 
 ```text
-MyDrive/CROPSTATE_KNOWLEDGE_BASDE/
-  CROPSTATE_Sample_Knowledge_Base.xlsx
+MyDrive/CROPSTATE_KNOWLEDGE_BASE/
+  CROPSTATE_Knowledge_Base_Complete.xlsx
 ```
 
-The converters also accept CSV exports in the same folder:
+The knowledge-base folder should include:
 
 ```text
-MyDrive/CROPSTATE_KNOWLEDGE_BASDE/
-  Image_Manifest_Template.csv
-  Knowledge_Chunks.csv
+MyDrive/CROPSTATE_KNOWLEDGE_BASE/
+  chunks/rice_knowledge_complete.jsonl
+  chunks/rice_knowledge_nonrestricted.jsonl
+  knowledge_chunks_complete.csv
+  review_queue.csv
 ```
 
 Results are written to:
@@ -71,7 +73,7 @@ If the repo already exists:
 
 ```python
 DATA_ROOT = "/content/drive/MyDrive/CROPSTATE_DATASET"
-KNOWLEDGE_ROOT = "/content/drive/MyDrive/CROPSTATE_KNOWLEDGE_BASDE"
+KNOWLEDGE_ROOT = "/content/drive/MyDrive/CROPSTATE_KNOWLEDGE_BASE"
 RESULTS_ROOT = "/content/drive/MyDrive/CROPSTATE_RESULTS"
 ```
 
@@ -89,7 +91,7 @@ You should see the six stage folders listed above.
 !ls -lah "{KNOWLEDGE_ROOT}"
 ```
 
-You should see `CROPSTATE_Sample_Knowledge_Base.xlsx` or the exported CSV files.
+You should see `CROPSTATE_Knowledge_Base_Complete.xlsx` and the `chunks/` folder.
 
 ## 7. Build Manifest From Drive Dataset
 
@@ -120,7 +122,47 @@ Use `data/image_manifest.csv` for training only after it contains reviewed rows.
   --output data/knowledge_chunks.jsonl
 ```
 
-## 10. Audit Manifest
+
+## 10. Audit Knowledge Corpus
+
+```bash
+!mkdir -p "{RESULTS_ROOT}/retrieval"
+!PYTHONPATH=src python scripts/audit_knowledge_base.py \
+  --input "{KNOWLEDGE_ROOT}/chunks/rice_knowledge_complete.jsonl" \
+  --mode research \
+  --output "{RESULTS_ROOT}/retrieval/knowledge_audit_complete.json"
+
+!PYTHONPATH=src python scripts/audit_knowledge_base.py \
+  --input "{KNOWLEDGE_ROOT}/chunks/rice_knowledge_nonrestricted.jsonl" \
+  --mode research \
+  --output "{RESULTS_ROOT}/retrieval/knowledge_audit_nonrestricted.json"
+```
+
+## 11. Run Sample Retrieval
+
+```bash
+!PYTHONPATH=src python scripts/run_retrieval.py \
+  --corpus "{KNOWLEDGE_ROOT}/chunks/rice_knowledge_nonrestricted.jsonl" \
+  --topic water_management \
+  --stage tillering \
+  --mode research \
+  --top-k 5 \
+  --output "{RESULTS_ROOT}/retrieval/water_tillering.json"
+```
+
+## 12. Evaluate Retrieval Baselines
+
+Run this only after `data/retrieval_scenarios.csv` exists.
+
+```bash
+!PYTHONPATH=src python scripts/evaluate_retrieval.py \
+  --corpus "{KNOWLEDGE_ROOT}/chunks/rice_knowledge_nonrestricted.jsonl" \
+  --scenarios data/retrieval_scenarios.csv \
+  --mode research \
+  --output "{RESULTS_ROOT}/retrieval/retrieval_evaluation.json"
+```
+
+## 13. Audit Manifest
 
 For the folder-generated pilot manifest:
 
@@ -140,7 +182,7 @@ For the reviewed sheet manifest:
   --checksum
 ```
 
-## 11. Train / Fine-Tune
+## 14. Train / Fine-Tune
 
 This writes checkpoints and logs directly to Drive.
 
@@ -154,7 +196,7 @@ This writes checkpoints and logs directly to Drive.
 
 To train with the reviewed sheet manifest instead, replace `data/stage_folder_manifest.csv` with `data/image_manifest.csv`.
 
-## 12. Continue Fine-Tuning
+## 15. Continue Fine-Tuning
 
 Use this for round 2 or later. Keep the same manifest so validation/test splits remain comparable.
 
@@ -170,7 +212,7 @@ Use this for round 2 or later. Keep the same manifest so validation/test splits 
   --output "{RESULTS_ROOT}/vision_resnet18_finetune_round2"
 ```
 
-## 13. Predict One Uploaded Image
+## 16. Predict One Uploaded Image
 
 ```python
 from google.colab import files
@@ -186,7 +228,7 @@ print("Uploaded:", image_path)
   --image "{image_path}"
 ```
 
-## 14. Inspect Saved Results
+## 17. Inspect Saved Results
 
 ```bash
 !ls -lah "{RESULTS_ROOT}/vision_resnet18_finetune"
