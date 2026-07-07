@@ -1,2 +1,3 @@
 .contextos/
 .venv/
+**/__pycache__/

@@ -24,15 +24,24 @@ def main():
 
     df = pd.read_csv(args.manifest)
     df = df[df.split == args.split]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    checkpoint = torch.load(args.checkpoint, map_location=device)
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        state_dict = checkpoint["model_state_dict"]
+        model_name = checkpoint.get("model_name", "resnet18")
+        image_size = int(checkpoint.get("image_size", 224))
+    else:
+        state_dict = checkpoint
+        model_name = "resnet18"
+        image_size = 224
     tf = transforms.Compose([
-        transforms.Resize((224, 224)), transforms.ToTensor(),
+        transforms.Resize((image_size, image_size)), transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
     dataset = RiceStageDataset(df, args.data_root, tf)
     loader = DataLoader(dataset, batch_size=32, shuffle=False)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_classifier(pretrained=False).to(device)
-    model.load_state_dict(torch.load(args.checkpoint, map_location=device))
+    model = build_classifier(model_name, pretrained=False).to(device)
+    model.load_state_dict(state_dict)
     model.eval()
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
