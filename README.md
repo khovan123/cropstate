@@ -18,6 +18,7 @@ Image-driven rice growth-stage recognition and confidence-aware stage-gated retr
 - `scripts/convert_knowledge_base.py`: canonical conversion from JSONL, XLSX, or CSV.
 - `scripts/run_retrieval.py`: fixed-topic hybrid retrieval and stage-aware reranking.
 - `scripts/evaluate_retrieval.py`: ungated, hard, fixed-soft, adaptive-soft, and oracle evaluation.
+- `configs/knowledge_sources.json`: source scope, page ranges, authority, region, and variety metadata.
 - `configs/retrieval.yaml`: retrieval configuration.
 - `tests/`: knowledge-loader and retrieval tests.
 
@@ -41,6 +42,7 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 ```bash
 PYTHONPATH=src python scripts/build_knowledge_base.py \
   --source-root /path/to/CROPSTATE_KNOWLEDGE_BASE/raw_sources \
+  --registry configs/knowledge_sources.json \
   --output-dir /path/to/CROPSTATE_KNOWLEDGE_BASE/chunks
 ```
 
@@ -73,7 +75,7 @@ PYTHONPATH=src python scripts/convert_knowledge_base.py \
   --knowledge-root /path/to/CROPSTATE_KNOWLEDGE_BASE \
   --mode research \
   --output data/knowledge_chunks.jsonl \
-  --coverage-output results/knowledge_coverage.json
+  --report results/knowledge_coverage.json
 ```
 
 ## Run fixed-topic retrieval
