@@ -1,20 +1,31 @@
 seed: 42
+mode: research
+embedding_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 candidate_depth: 50
 top_k: 5
 rrf_k0: 60
 beta_min: 0.05
 beta_max: 0.35
+fixed_beta: 0.20
 source_weight: 0.10
-fixed_beta: 0.25
+allow_restricted: false
+include_general_fallback: true
 topics:
   - water_management
   - nutrient_management
-  - disease_risk
   - pest_risk
+  - disease_risk
   - weed_management
-query_templates:
-  water_management: "rice water management guidance"
-  nutrient_management: "rice nutrient management guidance"
-  disease_risk: "rice disease risk and preventive management"
-  pest_risk: "rice pest risk and preventive management"
-  weed_management: "rice weed management guidance"
+  - harvest_readiness
+  - residue_management
+  - climate_adaptation
+  - general_crop_care
+query_templates_vi:
+  water_management: "Bằng chứng quản lý nước phù hợp với giai đoạn lúa"
+  nutrient_management: "Bằng chứng quản lý dinh dưỡng và bón phân phù hợp với giai đoạn lúa"
+  pest_risk: "Bằng chứng nguy cơ và quản lý sâu hại phù hợp với giai đoạn lúa"
+  disease_risk: "Bằng chứng nguy cơ và quản lý bệnh hại phù hợp với giai đoạn lúa"
+  weed_management: "Bằng chứng quản lý cỏ dại và lúa cỏ phù hợp với giai đoạn lúa"
+  harvest_readiness: "Bằng chứng đánh giá chín và thời điểm thu hoạch"
+  residue_management: "Bằng chứng quản lý rơm rạ sau thu hoạch"
+  climate_adaptation: "Bằng chứng canh tác thích ứng biến đổi khí hậu"
