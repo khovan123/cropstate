@@ -58,7 +58,7 @@ def predict_image(checkpoint_path: str | Path, image_path: str | Path) -> dict:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", default="results/vision_resnet18/best_checkpoint.pt")
+    parser.add_argument("--checkpoint", default="results/vision_final/best_checkpoint.pt")
     parser.add_argument("--image", required=True)
     parser.add_argument("--output", help="Optional JSON output path.")
     args = parser.parse_args()

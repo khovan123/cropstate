@@ -159,6 +159,13 @@ def dataset_from_split(df: pd.DataFrame, split: str, root: str | Path, transform
     return RiceStageDataset(subset, root, transform)
 
 
+def optional_dataset_from_split(df: pd.DataFrame, split: str, root: str | Path, transform):
+    subset = df[df.split == split].copy()
+    if subset.empty:
+        return None
+    return RiceStageDataset(subset, root, transform)
+
+
 def classifier_parameter_ids(model: nn.Module) -> set[int]:
     classifier = model.get_classifier() if hasattr(model, "get_classifier") else None
     if isinstance(classifier, nn.Module):
@@ -248,7 +255,7 @@ def main():
     parser.add_argument("--manifest", help="CSV manifest. If omitted, build one from stage folders in --data-root.")
     parser.add_argument("--data-root", default="data")
     parser.add_argument("--config", default="configs/vision.yaml")
-    parser.add_argument("--output", default="results/vision")
+    parser.add_argument("--output", default="results/vision_final")
     parser.add_argument("--model")
     parser.add_argument("--epochs", type=int)
     parser.add_argument("--batch-size", type=int)
@@ -264,7 +271,7 @@ def main():
     parser.add_argument("--no-pretrained", action="store_true")
     parser.add_argument("--no-class-weights", action="store_true")
     parser.add_argument("--resume-checkpoint", help="Continue fine-tuning from a previous best_checkpoint.pt or state_dict.")
-    parser.add_argument("--write-manifest", default="manifest_from_folders.csv")
+    parser.add_argument("--write-manifest", default="manifest.csv")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -295,18 +302,15 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
+    manifest_output = output / args.write_manifest
+    for legacy_path in (output / "best_model.pt", output / "manifest_from_folders.csv"):
+        if legacy_path.exists() and legacy_path != manifest_output:
+            legacy_path.unlink()
+
     if args.manifest:
         df = pd.read_csv(args.manifest)
     else:
         df = build_manifest_from_stage_folders(args.data_root)
-        df = grouped_stratified_split(
-            df,
-            group_col=split_group_column,
-            test_size=test_size,
-            val_size=val_size,
-            seed=seed,
-        )
-        df.to_csv(output / args.write_manifest, index=False)
 
     df["macro_stage"] = df["macro_stage"].map(canonical_stage_label)
     if split_group_column not in df.columns:
@@ -319,8 +323,8 @@ def main():
             val_size=val_size,
             seed=seed,
         )
-        df.to_csv(output / args.write_manifest, index=False)
     assert_no_group_leakage(df, [split_group_column, "parent_image_id"])
+    df.to_csv(manifest_output, index=False)
 
     train_tf = transforms.Compose([
         transforms.Resize((image_size + 32, image_size + 32)),
@@ -339,10 +343,16 @@ def main():
 
     train = dataset_from_split(df, "train", args.data_root, train_tf)
     val = dataset_from_split(df, "validation", args.data_root, eval_tf)
+    test = optional_dataset_from_split(df, "test", args.data_root, eval_tf)
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=2)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=2)
+    test_loader = DataLoader(test, batch_size=batch_size, shuffle=False, num_workers=2) if test is not None else None
 
-    model = build_classifier(model_name, num_classes=len(STAGE_NAMES), pretrained=pretrained).to(device)
+    model = build_classifier(
+        model_name,
+        num_classes=len(STAGE_NAMES),
+        pretrained=pretrained and not args.resume_checkpoint,
+    ).to(device)
     resume_metadata = {}
     if args.resume_checkpoint:
         state_dict, resume_metadata = load_model_state_from_checkpoint(args.resume_checkpoint, device)
@@ -361,8 +371,21 @@ def main():
         weights = class_counts.sum() / (len(STAGE_NAMES) * class_counts.clip(lower=1))
         criterion = nn.CrossEntropyLoss(weight=torch.tensor(weights.to_numpy(dtype=np.float32), device=device))
     optimizer = build_optimizer(model, learning_rate, backbone_learning_rate, weight_decay)
-    best_f1 = -1.0
+    resume_validation = resume_metadata.get("validation") or {}
+    best_f1 = float(resume_validation.get("macro_f1", -1.0) or -1.0)
     history = []
+    history_path = output / "history.json"
+    history_epoch_offset = 0
+    if args.resume_checkpoint and history_path.exists():
+        try:
+            loaded_history = json.loads(history_path.read_text())
+            if isinstance(loaded_history, list):
+                history = loaded_history
+                history_epoch_offset = max((int(item.get("epoch", 0)) for item in history), default=0)
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            history = []
+            history_epoch_offset = 0
+
     for epoch in range(1, epochs + 1):
         if freeze_backbone_epochs > 0 and epoch == freeze_backbone_epochs + 1:
             set_backbone_trainable(model, trainable=True)
@@ -371,18 +394,25 @@ def main():
         with torch.no_grad():
             val_metrics = run_epoch(model, val_loader, criterion, device)
         phase = "head_only" if epoch <= freeze_backbone_epochs else "full_finetune"
-        history.append({"epoch": epoch, "phase": phase, "train": train_metrics, "validation": val_metrics})
-        print(epoch, val_metrics)
+        global_epoch = history_epoch_offset + epoch
+        history.append({
+            "epoch": global_epoch,
+            "run_epoch": epoch,
+            "phase": phase,
+            "train": train_metrics,
+            "validation": val_metrics,
+        })
+        print(global_epoch, val_metrics)
         if val_metrics["macro_f1"] > best_f1:
             best_f1 = val_metrics["macro_f1"]
-            torch.save(model.state_dict(), output / "best_model.pt")
             torch.save({
                 "model_state_dict": model.state_dict(),
                 "model_name": model_name,
                 "num_classes": len(STAGE_NAMES),
                 "class_names": STAGE_NAMES,
                 "image_size": image_size,
-                "best_epoch": epoch,
+                "best_epoch": global_epoch,
+                "best_run_epoch": epoch,
                 "phase": phase,
                 "resume_checkpoint": args.resume_checkpoint,
                 "resume_metadata": resume_metadata,
@@ -401,10 +431,29 @@ def main():
                 },
                 "validation": val_metrics,
             }, output / "best_checkpoint.pt")
-    (output / "history.json").write_text(json.dumps(history, indent=2))
+    if not (output / "best_checkpoint.pt").exists():
+        raise FileNotFoundError(output / "best_checkpoint.pt")
+
+    state_dict, best_metadata = load_model_state_from_checkpoint(output / "best_checkpoint.pt", device)
+    model.load_state_dict(state_dict)
+    if test_loader is None:
+        test_metrics = {
+            "error": "Split 'test' is empty; no independent test metrics were computed.",
+            "best_checkpoint": best_metadata,
+        }
+    else:
+        with torch.no_grad():
+            test_metrics = run_epoch(model, test_loader, criterion, device)
+        test_metrics["best_checkpoint"] = {
+            "best_epoch": best_metadata.get("best_epoch"),
+            "validation": best_metadata.get("validation"),
+        }
+
+    history_path.write_text(json.dumps(history, indent=2))
     (output / "class_counts.json").write_text(
         json.dumps(df.groupby(["split", "macro_stage"]).size().unstack(fill_value=0).to_dict(orient="index"), indent=2)
     )
+    (output / "test_metrics.json").write_text(json.dumps(test_metrics, indent=2))
 
 
 if __name__ == "__main__":

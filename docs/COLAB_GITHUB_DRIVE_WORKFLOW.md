@@ -75,6 +75,7 @@ If the repo already exists:
 DATA_ROOT = "/content/drive/MyDrive/CROPSTATE_DATASET"
 KNOWLEDGE_ROOT = "/content/drive/MyDrive/CROPSTATE_KNOWLEDGE_BASE"
 RESULTS_ROOT = "/content/drive/MyDrive/CROPSTATE_RESULTS"
+OUTPUT_DIR = f"{RESULTS_ROOT}/vision_final"
 ```
 
 ## 5. Check Dataset Folders
@@ -103,7 +104,7 @@ You should see `CROPSTATE_Knowledge_Base_Complete.xlsx` and the `chunks/` folder
 
 ## 8. Convert Image Manifest From Knowledge Base
 
-Run this after `Image_Manifest_Template` has been filled. If the sheet is still a placeholder, `data/image_manifest.csv` will be empty and excluded rows will be written to `data/image_manifest_excluded.csv`.
+This command first tries to read `Image_Manifest_Template` from the knowledge-base folder. If the sheet is missing, empty, or contains no valid training rows, the script automatically falls back to scanning the stage folders in `DATA_ROOT`.
 
 ```bash
 !PYTHONPATH=src python scripts/convert_image_manifest.py \
@@ -112,7 +113,7 @@ Run this after `Image_Manifest_Template` has been filled. If the sheet is still 
   --output data/image_manifest.csv
 ```
 
-Use `data/image_manifest.csv` for training only after it contains reviewed rows. Until then, use `data/stage_folder_manifest.csv` for pilot runs.
+Use reviewed sheet rows for formal experiments. Folder fallback is useful for pilot runs because labels come directly from folder names.
 
 ## 9. Convert Knowledge Chunks From Drive
 
@@ -184,32 +185,31 @@ For the reviewed sheet manifest:
 
 ## 14. Train / Fine-Tune
 
-This writes checkpoints and logs directly to Drive.
+This writes the single final vision output folder directly to Drive.
 
 ```bash
 !PYTHONPATH=src python scripts/train_vision.py \
-  --manifest data/stage_folder_manifest.csv \
   --data-root "{DATA_ROOT}" \
   --config configs/vision.yaml \
-  --output "{RESULTS_ROOT}/vision_resnet18_finetune"
+  --output "{OUTPUT_DIR}"
 ```
 
-To train with the reviewed sheet manifest instead, replace `data/stage_folder_manifest.csv` with `data/image_manifest.csv`.
+The script writes `manifest.csv`, `best_checkpoint.pt`, `history.json`, `class_counts.json`, and `test_metrics.json` into `OUTPUT_DIR`.
 
 ## 15. Continue Fine-Tuning
 
-Use this for round 2 or later. Keep the same manifest so validation/test splits remain comparable.
+Use this for round 2 or later. Keep the same `OUTPUT_DIR`; the existing checkpoint is loaded first, then a better checkpoint overwrites the same file.
 
 ```bash
 !PYTHONPATH=src python scripts/train_vision.py \
-  --manifest data/stage_folder_manifest.csv \
+  --manifest "{OUTPUT_DIR}/manifest.csv" \
   --data-root "{DATA_ROOT}" \
   --config configs/vision.yaml \
-  --resume-checkpoint "{RESULTS_ROOT}/vision_resnet18_finetune/best_checkpoint.pt" \
+  --resume-checkpoint "{OUTPUT_DIR}/best_checkpoint.pt" \
   --freeze-backbone-epochs 0 \
   --learning-rate 0.0001 \
   --backbone-learning-rate 0.00001 \
-  --output "{RESULTS_ROOT}/vision_resnet18_finetune_round2"
+  --output "{OUTPUT_DIR}"
 ```
 
 ## 16. Predict One Uploaded Image
@@ -224,23 +224,24 @@ print("Uploaded:", image_path)
 
 ```bash
 !PYTHONPATH=src python scripts/predict_image.py \
-  --checkpoint "{RESULTS_ROOT}/vision_resnet18_finetune/best_checkpoint.pt" \
+  --checkpoint "{OUTPUT_DIR}/best_checkpoint.pt" \
   --image "{image_path}"
 ```
 
 ## 17. Inspect Saved Results
 
 ```bash
-!ls -lah "{RESULTS_ROOT}/vision_resnet18_finetune"
+!ls -lah "{OUTPUT_DIR}"
 ```
 
 Expected files:
 
 ```text
 best_checkpoint.pt
-best_model.pt
 history.json
 class_counts.json
+manifest.csv
+test_metrics.json
 ```
 
 GitHub stores code and small metadata. Google Drive stores the dataset, knowledge base, checkpoints, and training outputs.

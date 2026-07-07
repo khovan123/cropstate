@@ -119,6 +119,8 @@ python scripts/convert_image_manifest.py \
   --output data/image_manifest.csv
 ```
 
+Nếu sheet chưa được điền hoặc không có row training hợp lệ, converter sẽ tự quét folder stage trong `--data-root` và tạo manifest từ label folder. Muốn bắt buộc dùng sheet và báo lỗi khi sheet rỗng, thêm `--no-folder-fallback`.
+
 Converter chỉ giữ ảnh `usable` với nhãn S01-S06. S07 Uncertain và S08 Unusable được ghi vào `data/image_manifest_excluded.csv`, không đưa vào supervised training. Nếu bật checksum mặc định, exact duplicates được ghi vào `data/image_manifest_duplicates.csv`.
 
 Audit manifest trước khi train:
@@ -192,7 +194,7 @@ export PYTHONPATH=src
 python scripts/train_vision.py \
   --data-root data \
   --config configs/vision.yaml \
-  --output results/vision_resnet18
+  --output results/vision_final
 ```
 
 Config mặc định dùng fine-tuning hai pha: 3 epoch đầu freeze backbone và chỉ train classifier head, sau đó unfreeze toàn bộ model với learning rate thấp hơn cho backbone. Có thể override trực tiếp:
@@ -204,21 +206,21 @@ python scripts/train_vision.py \
   --freeze-backbone-epochs 3 \
   --learning-rate 0.0003 \
   --backbone-learning-rate 0.00003 \
-  --output results/vision_resnet18_finetune
+  --output results/vision_final
 ```
 
-Để fine-tune tiếp từ checkpoint đã train trước đó, dùng `--resume-checkpoint` và ghi output sang thư mục mới:
+Để fine-tune tiếp từ checkpoint đã train trước đó, dùng `--resume-checkpoint` và ghi đè vào cùng thư mục `vision_final`:
 
 ```bash
 python scripts/train_vision.py \
-  --manifest results/vision_resnet18_finetune/manifest_from_folders.csv \
+  --manifest results/vision_final/manifest.csv \
   --data-root data \
   --config configs/vision.yaml \
-  --resume-checkpoint results/vision_resnet18_finetune/best_checkpoint.pt \
+  --resume-checkpoint results/vision_final/best_checkpoint.pt \
   --freeze-backbone-epochs 0 \
   --learning-rate 0.0001 \
   --backbone-learning-rate 0.00001 \
-  --output results/vision_resnet18_finetune_round2
+  --output results/vision_final
 ```
 
 Nếu đã có manifest metadata đầy đủ, truyền thêm `--manifest data/image_manifest.csv`. Nếu không truyền manifest, script tự tạo manifest từ các thư mục `01_establishment`, `02_tillering`, `03_stem_booting`, `04_reproductive`, `05_grain_filling`, `06_ripening`, kể cả khi tên thư mục có khoảng trắng đầu. Split mặc định theo `parent_image_id` để các patch overlap từ cùng ảnh gốc không rơi vào nhiều split. Các folder `07_uncertain` và `08_unusable` không thuộc six-class training.
@@ -248,7 +250,7 @@ Sau đó chạy inference bằng checkpoint tốt nhất:
 
 ```bash
 !PYTHONPATH=src python scripts/predict_image.py \
-  --checkpoint results/vision_resnet18/best_checkpoint.pt \
+  --checkpoint results/vision_final/best_checkpoint.pt \
   --image "{image_path}"
 ```
 
@@ -311,6 +313,8 @@ python scripts/convert_knowledge_base.py \
 Các chunk có `review_status=sample_only_not_agronomic_ground_truth` chỉ dùng để test pipeline, không dùng làm khuyến nghị canh tác thật.
 
 ## 13. Retrieval baselines
+
+Giải thích đầy đủ về vai trò của retrieval trong pipeline nằm ở `docs/RETRIEVAL_OVERVIEW_VI.md`.
 
 - B0 Ungated hybrid: BM25 + dense + RRF, không dùng stage.
 - B1 Hard top-1: dùng stage dự đoán để filter.

@@ -80,6 +80,8 @@ PYTHONPATH=src python scripts/convert_knowledge_base.py \
 
 ## Run fixed-topic retrieval
 
+For a Vietnamese explanation of how vision, retrieval, knowledge base, and reranking fit together, see `docs/RETRIEVAL_OVERVIEW_VI.md`.
+
 ```bash
 PYTHONPATH=src python scripts/run_retrieval.py \
   --corpus /path/to/chunks/rice_knowledge_complete.jsonl \
@@ -146,5 +148,5 @@ PYTHONPATH=src python scripts/train_vision.py \
   --manifest data/stage_folder_manifest.csv \
   --data-root /path/to/CROPSTATE_DATASET \
   --config configs/vision.yaml \
-  --output results/vision_resnet18
+  --output results/vision_final
 ```
