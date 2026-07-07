@@ -1,88 +1,148 @@
-# CROPSTATE Full Research Package
+# CROPSTATE Research Package
 
 Image-driven rice growth-stage recognition and confidence-aware stage-gated retrieval.
 
 ## Scope
 
 - Input is a rice-field image; no free-form chatbot question is required.
-- The vision component performs **six-class image classification**, not object detection.
-- The six macro-stages are: Establishment, Tillering, Stem/Booting, Reproductive, Grain Filling, Ripening.
-- Image patches that overlap or originate from one parent image must stay in the same train/validation/test split.
-- Retrieval runs automatically for fixed agricultural topics and uses the full visual stage-belief distribution.
+- Vision is six-class image classification: Establishment, Tillering, Stem/Booting, Reproductive, Grain Filling, and Ripening.
+- Overlapping patches from one parent image must remain in one train/validation/test split.
+- Retrieval runs on fixed agricultural topics and uses the complete calibrated stage-belief distribution.
+- Research mode and production mode are separated. Machine-curated chunks are not treated as production-approved recommendations.
 
-## Package contents
+## Repository contents
 
-- `paper/`: updated IEEE LaTeX paper and PDF.
-- `docs/IMPLEMENTATION_GUIDE_VI.md`: complete Vietnamese implementation guide.
-- `docs/ANNOTATION_GUIDELINE.md`: image and knowledge annotation protocol.
-- `src/cropstate/`: training, inference, confidence, retrieval, evaluation, and statistics code.
-- `configs/`: example experiment configurations.
-- `data/templates/`: CSV/JSONL templates.
-- `data/sample_images/`: six user-provided sample patches for pipeline testing only.
-- `scripts/`: command-line entry points.
+- `src/cropstate/`: vision, confidence, knowledge validation, retrieval, metrics, and statistics.
+- `scripts/build_knowledge_base.py`: page-aware chunking from the registered PDF sources.
+- `scripts/audit_knowledge_base.py`: schema, coverage, and production-readiness audit.
+- `scripts/convert_knowledge_base.py`: canonical conversion from JSONL, XLSX, or CSV.
+- `scripts/run_retrieval.py`: fixed-topic hybrid retrieval and stage-aware reranking.
+- `scripts/evaluate_retrieval.py`: ungated, hard, fixed-soft, adaptive-soft, and oracle evaluation.
+- `configs/retrieval.yaml`: retrieval configuration.
+- `tests/`: knowledge-loader and retrieval tests.
 
-## Quick start
+## Install
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-python scripts/build_sample_manifest.py
-python scripts/audit_dataset.py --manifest data/sample_manifest.csv
+pip install -e .
 ```
 
-The six bundled images are **not sufficient to train a scientific six-stage model**. They are included only to test file loading, metadata validation, and leakage checks.
-
-For Google Colab where code is cloned from GitHub, the dataset is stored in Drive under `CROPSTATE_DATASET`, and the knowledge base is stored under `CROPSTATE_KNOWLEDGE_BASDE`, use [docs/COLAB_GITHUB_DRIVE_WORKFLOW.md](docs/COLAB_GITHUB_DRIVE_WORKFLOW.md) or import [notebooks/cropstate_colab_github_drive.ipynb](notebooks/cropstate_colab_github_drive.ipynb).
-
-## Manifest and knowledge-base conversion
-
-If the Google Sheet workbook or CSV exports are stored in a knowledge-base folder, convert the image manifest before training:
+## Test
 
 ```bash
-python scripts/convert_image_manifest.py \
-  --knowledge-root CROPSTATE_KNOWLEDGE_BASDE \
-  --data-root data \
-  --output data/image_manifest.csv
-
-python scripts/audit_dataset.py \
-  --manifest data/image_manifest.csv \
-  --data-root data \
-  --checksum
+PYTHONPATH=src python -m unittest discover -s tests -v
 ```
 
-The converter keeps only usable S01-S06 samples for six-class training. S07 Uncertain and S08 Unusable rows are written to `data/image_manifest_excluded.csv`.
-
-For a folder-only pilot manifest generated directly from the six stage folders:
+## Build the knowledge base from PDFs
 
 ```bash
-python scripts/build_stage_manifest.py \
-  --data-root data \
+PYTHONPATH=src python scripts/build_knowledge_base.py \
+  --source-root /path/to/CROPSTATE_KNOWLEDGE_BASE/raw_sources \
+  --output-dir /path/to/CROPSTATE_KNOWLEDGE_BASE/chunks
+```
+
+Generated files:
+
+```text
+rice_knowledge_complete.jsonl
+rice_knowledge_nonrestricted.jsonl
+knowledge_chunks_complete.csv
+review_queue.csv
+source_registry_complete.json
+chunking_report.json
+```
+
+## Audit the corpus
+
+```bash
+PYTHONPATH=src python scripts/audit_knowledge_base.py \
+  --input /path/to/chunks/rice_knowledge_complete.jsonl \
+  --mode research \
+  --output results/knowledge_audit.json
+```
+
+## Convert an external knowledge folder
+
+The converter accepts canonical JSONL, XLSX, or CSV. It prefers complete canonical files over the old sample workbook.
+
+```bash
+PYTHONPATH=src python scripts/convert_knowledge_base.py \
+  --knowledge-root /path/to/CROPSTATE_KNOWLEDGE_BASE \
+  --mode research \
+  --output data/knowledge_chunks.jsonl \
+  --coverage-output results/knowledge_coverage.json
+```
+
+## Run fixed-topic retrieval
+
+```bash
+PYTHONPATH=src python scripts/run_retrieval.py \
+  --corpus /path/to/chunks/rice_knowledge_complete.jsonl \
+  --topic water_management \
+  --stage tillering \
+  --mode research \
+  --top-k 5 \
+  --output results/water_tillering.json
+```
+
+Supported topics include:
+
+```text
+water_management
+nutrient_management
+pest_risk
+disease_risk
+weed_management
+harvest_readiness
+residue_management
+climate_adaptation
+general_crop_care
+```
+
+## Evaluate retrieval baselines
+
+```bash
+PYTHONPATH=src python scripts/evaluate_retrieval.py \
+  --corpus /path/to/chunks/rice_knowledge_complete.jsonl \
+  --scenarios data/retrieval_scenarios.csv \
+  --mode research \
+  --output results/retrieval_evaluation.json
+```
+
+Metrics: P@k, R@k, nDCG@k, and SIRR@k.
+
+## Safety and review status
+
+The generated corpus is structurally validated and ready for research/pilot retrieval. Machine-curated chunks use `review_status=machine_curated_pending_domain_review` and `production_eligible=false` until a domain reviewer approves them.
+
+Production mode loads a chunk only when all conditions hold:
+
+```text
+review_status in {reviewed, domain_reviewed, approved}
+production_eligible = true
+restricted_action = false
+```
+
+Commercial, chemical, product-dose, variety-specific, and regulation-sensitive chunks must be reviewed by an agronomy/domain reviewer before use outside research experiments.
+
+## Vision workflow
+
+```bash
+PYTHONPATH=src python scripts/build_stage_manifest.py \
+  --data-root /path/to/CROPSTATE_DATASET \
   --output data/stage_folder_manifest.csv
 
-python scripts/audit_dataset.py \
+PYTHONPATH=src python scripts/audit_dataset.py \
   --manifest data/stage_folder_manifest.csv \
-  --data-root data \
+  --data-root /path/to/CROPSTATE_DATASET \
   --checksum
+
+PYTHONPATH=src python scripts/train_vision.py \
+  --manifest data/stage_folder_manifest.csv \
+  --data-root /path/to/CROPSTATE_DATASET \
+  --config configs/vision.yaml \
+  --output results/vision_resnet18
 ```
-
-Convert knowledge chunks for retrieval experiments:
-
-```bash
-python scripts/convert_knowledge_base.py \
-  --knowledge-root CROPSTATE_KNOWLEDGE_BASDE \
-  --output data/knowledge_chunks.jsonl
-```
-
-## Main research sequence
-
-1. Collect and annotate images for all six stages.
-2. Create parent-image, field, date, and season metadata.
-3. Split data by group, never randomly by overlapping patch.
-4. Train image-classification baselines.
-5. Calibrate probabilities and export stage-belief vectors.
-6. Build stage-annotated agricultural knowledge chunks.
-7. Run oracle-stage and end-to-end retrieval experiments.
-8. Calculate Macro-F1, MASD, ECE, nDCG, SIRR, degradation, ablation, and paired statistics.
-9. Populate paper result tables only from saved experiment outputs.
