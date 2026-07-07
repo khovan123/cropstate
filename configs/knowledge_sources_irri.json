@@ -1,0 +1,156 @@
+[
+  {
+    "source_id": "IRRI_RKB_001",
+    "url": "/step-by-step-production/pre-planting/crop-calendar",
+    "title": "Crop calendar",
+    "phase": "pre_planting",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_002",
+    "url": "/step-by-step-production/pre-planting/land-preparation",
+    "title": "Land preparation",
+    "phase": "pre_planting",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_003",
+    "url": "/step-by-step-production/pre-planting/rice-varieties",
+    "title": "Rice varieties",
+    "phase": "pre_planting",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_004",
+    "url": "/step-by-step-production/pre-planting/seed-quality",
+    "title": "Seed quality",
+    "phase": "pre_planting",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_005",
+    "url": "/step-by-step-production/growth/planting",
+    "title": "Planting",
+    "phase": "growth",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_006",
+    "url": "/step-by-step-production/growth/soil-fertility",
+    "title": "Soil fertility",
+    "phase": "growth",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_007",
+    "url": "/step-by-step-production/growth/water-management",
+    "title": "Water management",
+    "phase": "growth",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_008",
+    "url": "/step-by-step-production/growth/weed-management",
+    "title": "Weed management",
+    "phase": "growth",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_009",
+    "url": "/step-by-step-production/growth/pests-and-diseases",
+    "title": "Pests and diseases",
+    "phase": "growth",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_010",
+    "url": "/step-by-step-production/postharvest/harvesting",
+    "title": "Harvesting",
+    "phase": "postharvest",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_011",
+    "url": "/step-by-step-production/postharvest/drying",
+    "title": "Drying",
+    "phase": "postharvest",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_012",
+    "url": "/step-by-step-production/postharvest/milling",
+    "title": "Milling and processing",
+    "phase": "postharvest",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_013",
+    "url": "/step-by-step-production/postharvest/storage",
+    "title": "Storage",
+    "phase": "postharvest",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  },
+  {
+    "source_id": "IRRI_RKB_014",
+    "url": "/step-by-step-production/postharvest/rice-by-products",
+    "title": "By-products",
+    "phase": "postharvest",
+    "organization": "International Rice Research Institute (IRRI)",
+    "source_type": "extension_knowledge_bank",
+    "authority_score": 0.9,
+    "license_note": "CC BY-NC-SA 3.0 (creativecommons.org/licenses/by-nc-sa/3.0); attribution required, non-commercial, share-alike.",
+    "use_mode": "research_only_requires_domain_review"
+  }
+]

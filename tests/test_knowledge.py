@@ -20,6 +20,27 @@ class KnowledgeTests(unittest.TestCase):
         self.assertEqual(chunk.stage_compatibility[1], 1.0)
         self.assertEqual(chunk.stage_compatibility[0], 0.55)
 
+    def test_facet_defaults_to_general_and_roundtrips(self):
+        chunk = KnowledgeChunk.from_mapping({
+            "chunk_id": "C2",
+            "text": "Nội dung không có trường facet vẫn phải được nạp thành công với giá trị mặc định hợp lệ.",
+            "topic": "water_management",
+            "stage_compatibility": [1, 0.5, 0, 0, 0, 0],
+            "authority_score": 0.8,
+        })
+        self.assertEqual(chunk.facet, "general")
+        self.assertEqual(chunk.to_dict()["facet"], "general")
+
+        tagged = KnowledgeChunk.from_mapping({
+            "chunk_id": "C3",
+            "text": "Nội dung có trường facet tường minh cần được giữ nguyên giá trị khi nạp vào hệ thống.",
+            "topic": "nutrient_management",
+            "stage_compatibility": [1, 0.5, 0, 0, 0, 0],
+            "authority_score": 0.8,
+            "facet": "fertilizer",
+        })
+        self.assertEqual(tagged.facet, "fertilizer")
+
     def test_production_filter(self):
         records = [
             {

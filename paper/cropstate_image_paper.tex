@@ -30,7 +30,7 @@ lebaonhi0805@gmail.com}}
 \maketitle
 
 \begin{abstract}
-Agricultural management actions depend strongly on crop development, yet many decision-support systems retrieve evidence using only lexical or semantic similarity. A passage may therefore be topically relevant while being inappropriate for the current rice growth stage. This paper proposes \method, an image-driven, confidence-aware growth-stage-gated retrieval framework for rice decision support. A vision model first processes a field image and produces a probability distribution over six BBCH-derived rice macro-stages. Rather than converting this distribution immediately into a single hard label, \method preserves uncertainty, optionally fuses it with a temporal prior, and adaptively controls the contribution of stage compatibility during retrieval. The downstream component uses fixed care topics rather than free-form chatbot questions, combines BM25 and dense retrieval using normalized Reciprocal Rank Fusion, and returns structured stage-specific evidence. The study addresses two research questions: how accurately rice growth stages can be recognized from field images, and whether confidence-aware soft gating is more robust than top-1 hard filtering when image-based stage predictions are uncertain or incorrect. The protocol includes image-classification baselines, calibration analysis, oracle-stage retrieval, end-to-end image-based retrieval, the Stage-Inappropriate Retrieval Rate, robustness degradation, ablation studies, and paired statistical analysis. Empirical claims are intentionally deferred until the image dataset and held-out experiments are completed.
+Agricultural management actions depend strongly on crop development, yet many decision-support systems retrieve evidence using only lexical or semantic similarity. A passage may therefore be topically relevant while being inappropriate for the current rice growth stage. This paper proposes \method, an image-driven, confidence-aware growth-stage-gated retrieval framework for rice decision support. A vision model first processes a field image and produces a probability distribution over six BBCH-derived rice macro-stages. Rather than converting this distribution immediately into a single hard label, \method preserves uncertainty, optionally fuses it with a temporal prior, and adaptively controls the contribution of stage compatibility during retrieval. The downstream component uses fixed care topics rather than free-form chatbot questions, combines BM25 and dense retrieval using normalized Reciprocal Rank Fusion, and returns structured stage-specific evidence. The study addresses two research questions: how accurately rice growth stages can be recognized from field images, and whether confidence-aware soft gating is more robust than top-1 hard filtering when image-based stage predictions are uncertain or incorrect. The protocol includes image-classification baselines, calibration analysis, oracle-stage retrieval, end-to-end image-based retrieval, the Stage-Inappropriate Retrieval Rate, robustness degradation, ablation studies, and paired statistical analysis. A pilot held-out vision experiment comparing three trained models (a from-scratch shallow CNN, fine-tuned ResNet-18, and fine-tuned EfficientNet-B0) plus a multi-seed check has been run and is reported; it gives a preliminary, favorable signal on rice growth-stage recognizability, but a paired, Holm-corrected statistical comparison finds no significant difference among the three trained models at this sample size, and the pilot split still lacks the real field/season grouping the protocol requires. Retrieval evaluation has not been run, and no claim on the comparative robustness of confidence-aware soft gating versus hard filtering is made until it is.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -287,8 +287,14 @@ Each image record should include image identifier, field identifier, season, var
 
 To reduce leakage, train, validation, and test splits must be grouped by field, farm, or season. Near-duplicate images from the same plot must not be distributed across splits. The final study should report image counts per stage, number of fields, class imbalance, acquisition conditions, and the proportion receiving independent review.
 
+An initial pilot collection of 552 images has been assembled and split by group (386 train / 83 validation / 83 test, seed 42). Field, capture-session, and season metadata are recorded as \texttt{unknown} for every image in this pilot round, so the grouping column degenerates to one group per image and no overlapping-patch or burst-image leakage was present to guard against. This is a data-collection gap, not a splitting-code limitation: Section~\ref{sec:future-work} treats collecting real field/session identifiers as the top-priority item, since the field- or season-held-out protocol this section calls for cannot be exercised until that metadata exists. Class counts are imbalanced (train: establishment 24, tillering 104, stem\_booting 38, reproductive 29, grain\_filling 87, ripening 104), most severely for the reproductive stage, which has only 6 test images. This pilot collection has not yet been independently double-annotated; labels currently derive from stage-folder assignment rather than confirmed expert or two-reviewer adjudication.
+
 \subsection{Knowledge Base and Retrieval Labels}
 The document collection should contain traceable agronomic sources. Each chunk includes care topic, stage range, applicability type, source provenance, authority score, and contraindications. Evaluation labels identify relevant chunks and stage-inappropriate chunks for each fixed care topic and ground-truth image stage.
+
+An initial corpus has been built from 5 registered Vietnamese-language agronomic sources, yielding 302 machine-curated chunks across the 9 fixed care topics (general\_crop\_care: 69; water\_management: 52; nutrient\_management: 51; harvest\_readiness: 30; disease\_risk: 29; pest\_risk: 27; residue\_management: 20; climate\_adaptation: 13; weed\_management: 11). Of these, 60 chunks are flagged \texttt{restricted\_action} (dosage, product-specific, or regulation-sensitive content) and are excluded from non-restricted retrieval. All 302 chunks currently carry \texttt{review\_status=machine\_curated\_pending\_domain\_review}, so 0 are \texttt{production\_eligible}; the corpus is usable for research-mode retrieval experiments but not yet for production or as a source of retrieval evaluation ground truth, since no domain-reviewed relevance judgments over this corpus exist yet.
+
+A supplementary English-language corpus of 173 machine-curated chunks has since been built from 14 topic pages of the IRRI Rice Knowledge Bank, tagged with the same care-topic and stage-compatibility scheme plus an additional facet label (fertilizer, conditions, pest/disease prevention, next-stage action, or general) intended to support stage-organized reporting. It is kept in a separate file from the 302-chunk corpus above so that the statistics reported in this section remain reproducible, and it has not been used in any experiment reported in this paper.
 
 \subsection{Vision Baselines}
 The vision study compares at least:
@@ -360,27 +366,74 @@ Ablation removes one component at a time: temperature calibration, entropy term,
 All retrieval methods are evaluated on the same images and topics; therefore, paired analysis is required. The final study reports bootstrap 95\% confidence intervals, paired permutation or Wilcoxon signed-rank tests, effect sizes, and Holm correction for multiple comparisons. Vision-model comparisons use paired predictions on the same held-out images. Results should also be reported by class and by confidence bin rather than only as aggregate means.
 
 \section{Results Reporting Plan}
-This section will be populated only after experiments are completed. Tables remain empty to pre-specify the reporting structure and prevent fabricated or selectively reported findings.
+Experiment 0 (vision) has now been run for four models on the pilot image collection and is reported below, including the two vision baselines and the multi-seed check that earlier revisions of this manuscript listed as not yet trained. Experiments 1 and 2 (retrieval) remain unpopulated: no domain-reviewed relevance-judgment scenario set has been produced yet, so no retrieval baseline comparison can be reported without fabricating figures. Tables for those experiments are kept empty to pre-specify the reporting structure and prevent fabricated or selectively reported findings.
 
 \begin{table*}[t]
-\caption{Experiment 0: vision results on the held-out image test set (not yet populated).}
+\caption{Experiment 0: vision results on one held-out test split of the pilot image collection (552 images: 386 train / 83 validation / 83 test; group-split seed 42). All four rows share this exact test split, so results are paired at the image level.}
 \label{tab:vision-results}
 \centering
 \footnotesize
 \begin{tabular}{lcccccc}
 \toprule
-Model & Accuracy & Macro-F1 & MASD $\downarrow$ & ECE $\downarrow$ & Brier $\downarrow$ & 95\% CI \\
+Model & Accuracy & Macro-F1 & MASD $\downarrow$ & ECE $\downarrow$ & Brier $\downarrow$ & 95\% CI (accuracy) \\
 \midrule
-Majority class & -- & -- & -- & -- & -- & -- \\
-Small CNN & -- & -- & -- & -- & -- & -- \\
-ResNet-18 & -- & -- & -- & -- & -- & -- \\
-EfficientNet-B0 & -- & -- & -- & -- & -- & -- \\
+Majority class (tillering) & 0.277 & 0.072 & 2.048 & n/a & n/a & [0.181, 0.373] \\
+Small CNN (from scratch) & 0.759 & 0.702 & 0.434 & 0.189 & 0.400 & [0.663, 0.843] \\
+ResNet-18 (pretrained, fine-tuned) & 0.807 & 0.745 & 0.277 & 0.250 & 0.369 & [0.723, 0.892] \\
+EfficientNet-B0 (pretrained, fine-tuned) & 0.711 & 0.614 & 0.422 & 0.183 & 0.421 & [0.614, 0.807] \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
+The 95\% CI is a non-parametric bootstrap (10{,}000 resamples, seed 42) over the 83 held-out test images, computed with \texttt{scripts/compare\_vision\_baselines.py} (raw per-image predictions and correctness vectors for all four rows are saved alongside this script's output for reproducibility). Reproductive-stage recall for ResNet-18 is markedly lower than the other five classes (0.167 versus 0.68--1.00) but is based on only 6 test images for that class, so it should be read as a data-scarcity signal rather than a robust per-class effect; EfficientNet-B0's reproductive recall is 0.0 on the same 6 images, the same small-count caveat applies. ECE for ResNet-18 (0.250) indicates the raw softmax output is not yet well calibrated, which is the motivation for the temperature-scaling step described in the Problem Formulation section rather than a contradiction of it.
+
+Because all four models share one test split, their per-image correctness is directly comparable with paired tests. Table~\ref{tab:vision-pairwise} reports Wilcoxon signed-rank tests with Holm correction across all $\binom{4}{2}=6$ pairs. All three trained models beat the majority-class baseline decisively (Holm-adjusted $p<0.0001$ for all three). Among the trained models, only the ResNet-18 vs.\ EfficientNet-B0 gap has a raw $p<0.05$ (0.0455), and it does not survive Holm correction for multiple comparisons (0.137); ResNet-18 vs.\ Small CNN and Small CNN vs.\ EfficientNet-B0 are both far from significance. At this sample size (83 test images), the data do not support a claim that any one of the three trained architectures is reliably better than another.
+
+\begin{table}[t]
+\caption{Experiment 0: paired comparison of the three trained models and the majority baseline on the shared 83-image test split (Wilcoxon signed-rank, Holm-corrected).}
+\label{tab:vision-pairwise}
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+Pair & Accuracy diff. & 95\% CI & Holm $p$ \\
+\midrule
+Majority vs.\ ResNet-18 & $-0.530$ & [$-0.639$, $-0.422$] & $<0.0001$ \\
+Majority vs.\ Small CNN & $-0.482$ & [$-0.614$, $-0.349$] & $<0.0001$ \\
+Majority vs.\ EfficientNet-B0 & $-0.434$ & [$-0.554$, $-0.313$] & $<0.0001$ \\
+ResNet-18 vs.\ Small CNN & $+0.048$ & [$-0.048$, $0.145$] & $0.692$ \\
+ResNet-18 vs.\ EfficientNet-B0 & $+0.096$ & [$0.012$, $0.193$] & $0.137$ \\
+Small CNN vs.\ EfficientNet-B0 & $+0.048$ & [$-0.060$, $0.157$] & $0.692$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+One caveat applies to all three trained models: they were fine-tuned with identical hyperparameters (learning rate, backbone learning rate, freeze-then-unfreeze schedule, 30 epochs) rather than hyperparameters separately tuned per architecture on the validation set, as the Vision Baselines subsection specifies for the final study. EfficientNet-B0 in particular may be under-tuned relative to its capacity; the comparison above should be read as ``under one shared, ResNet-18-oriented training recipe,'' not as an architecture-controlled comparison at each model's best achievable setting.
+
+Table~\ref{tab:vision-multiseed} reports ResNet-18 trained with two additional seeds. Because the pilot manifest has no real field or session grouping (every image is its own group; see the Future Work section), each seed also draws a different random train/validation/test partition rather than only re-initializing the model, so this table mixes model-seed and split variability rather than isolating one from the other.
+
+\begin{table}[t]
+\caption{ResNet-18 across three seeds; each seed also reshuffles the (ungrouped) pilot split.}
+\label{tab:vision-multiseed}
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+Seed & Accuracy & Macro-F1 & MASD $\downarrow$ \\
+\midrule
+42 (Table~\ref{tab:vision-results}) & 0.807 & 0.745 & 0.277 \\
+7 & 0.807 & 0.802 & 0.398 \\
+123 & 0.795 & 0.789 & 0.289 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Accuracy is stable across the three seeds (0.795--0.807), which is a mildly favorable robustness signal, but because the split itself changes with the seed, this table cannot separate ``the model is stable'' from ``this particular pilot collection is easy across most random partitions of it.'' Resolving that ambiguity requires the field/session metadata described in the Future Work section, not more seeds of the current pilot.
+
+This remains a single, small pilot image collection (RQ1 feasibility only, not the field- or season-held-out benchmark the Research Methodology section calls for), and the Small CNN and EfficientNet-B0 hyperparameters were not independently tuned; both caveats are carried forward to Future Work.
+
 \begin{table*}[t]
-\caption{Experiment 1: oracle-stage retrieval results (not yet populated).}
+\caption{Experiment 1: oracle-stage retrieval results (pending; no domain-reviewed relevance-judgment scenario set exists yet, so B0--P cannot be compared without fabricating figures).}
 \label{tab:oracle-results}
 \centering
 \footnotesize
@@ -398,7 +451,7 @@ P: Adaptive re-ranking & -- & -- & -- & -- & -- \\
 \end{table*}
 
 \begin{table*}[t]
-\caption{Experiment 2: end-to-end image-based retrieval (not yet populated).}
+\caption{Experiment 2: end-to-end image-based retrieval (pending; depends on Experiment 1's scenario set and stratification by vision confidence/error condition, neither of which exists yet).}
 \label{tab:e2e-results}
 \centering
 \footnotesize
@@ -416,9 +469,25 @@ Visual--temporal conflict & -- & -- & -- & -- \\
 \end{table*}
 
 \section{Discussion}
-A useful result does not require the proposed method to outperform every baseline under every condition. Hard filtering may achieve the best oracle-stage SIRR while failing sharply on misclassified images. Adaptive soft gating may sacrifice a small amount of oracle precision to preserve relevant evidence under visual uncertainty. Conversely, a calibrated image model can still be confidently wrong under field shift, in which case confidence-aware gating may continue to overweight an incorrect stage. Such cases should be reported explicitly.
+The pilot Experiment 0 results (Table~\ref{tab:vision-results}) give a preliminary, favorable answer to RQ1 on a single small held-out split: all three trained models score well above the majority-class baseline, decisively (Table~\ref{tab:vision-pairwise}, Holm-adjusted $p<0.0001$ for all three). Of ResNet-18's 16 misclassified test images, 12 (75\%) are predicted into a stage adjacent to the true one and 4 cross two or more stage boundaries (1 of the 6 reproductive errors, predicted as tillering; 2 of the 6 grain\_filling errors, predicted as tillering or stem\_booting; 1 of the 3 ripening errors, predicted as tillering). Errors are therefore concentrated in, but not exclusively confined to, adjacent stages. The weak reproductive-stage recall is more plausibly a symptom of that class having only 6 test images than of a genuine morphological difficulty, and should not be over-interpreted until a larger, field-held-out evaluation is run. Because the pilot dataset has not yet been independently double-annotated and every image happened to form its own split group, this result establishes feasibility only; it does not yet constitute the field- or season-held-out evaluation the Research Methodology section calls for.
+
+Two findings from the newly trained baselines temper how strongly RQ1 should be read. First, the pretrained-backbone advantage is not statistically demonstrated at this sample size: ResNet-18 outperforms Small CNN by only 4.8 points of accuracy (Holm $p=0.692$), so a shallow model trained from scratch is not distinguishable from a fine-tuned pretrained backbone on 83 held-out images, even though the point estimates favor ResNet-18. Second, EfficientNet-B0 underperforms both other trained models under the shared, non-per-architecture-tuned hyperparameters used here (accuracy 0.711, macro-F1 0.614, reproductive recall 0.0). This is more likely a symptom of using ResNet-18-tuned hyperparameters for a different architecture on a 386-image training set than evidence that EfficientNet-B0 is unsuitable for this task; the honest conclusion is that Table~\ref{tab:vision-results} compares three models under one shared recipe, not three architectures each at their best setting. The multi-seed ResNet-18 check (Table~\ref{tab:vision-multiseed}) shows accuracy stable across three seeds (0.795--0.807), a mild positive signal, but because seed and split are coupled in the current pilot manifest, this cannot yet be separated from ``this particular 552-image collection happens to be easy to split well.''
+
+RQ2 (whether confidence-aware soft gating is more robust than hard filtering) remains open: no retrieval evaluation has been run against domain-reviewed relevance judgments, so neither hard filtering nor adaptive soft gating can currently be shown to outperform the other. A useful result on RQ2 will not require the proposed method to outperform every baseline under every condition. Hard filtering may achieve the best oracle-stage SIRR while failing sharply on misclassified images. Adaptive soft gating may sacrifice a small amount of oracle precision to preserve relevant evidence under visual uncertainty. Conversely, a calibrated image model can still be confidently wrong under field shift, in which case confidence-aware gating may continue to overweight an incorrect stage. Such cases should be reported explicitly once retrieval evaluation data exists.
 
 If image recognition performs poorly, the study cannot attribute downstream failures solely to retrieval. Error analysis must distinguish morphological ambiguity, class imbalance, background leakage, camera-scale variation, metadata error, missing knowledge, and retriever failure. If oracle-stage retrieval does not reduce SIRR, the knowledge collection or stage annotation may be insufficiently stage-sensitive even if the vision model performs well.
+
+\section{Future Work}
+\label{sec:future-work}
+The gaps below are ordered by priority, from the item that blocks validating RQ1 as specified to items that extend the system beyond what either research question currently requires.
+
+\textbf{Field- or season-grouped splits (still open).} The pilot collection described in the Image Dataset subsection of Research Methodology records field, capture-session, and season as \texttt{unknown} for every image, so the grouped-split protocol defined earlier, in the Image Dataset and Split Protocol subsection of Problem Formulation, could not be exercised: each image trivially forms its own group. This remains true even after the raw pilot images were made available locally for this revision (the four-model comparison in the Results Reporting Plan section and the multi-seed check in Table~\ref{tab:vision-multiseed} both run on the same collection): having the image files does not supply the missing field/session identifiers, and no EXIF or other embedded capture metadata was present in the files to recover them from. This is the top-priority gap, because it is what the field- or season-held-out claim in RQ1 depends on; every result in Table~\ref{tab:vision-results} and Table~\ref{tab:vision-multiseed} should be read as a feasibility check, not as evidence against background or acquisition leakage. Closing it requires re-collecting or backfilling real field/session identifiers, not a change to the splitting code, which already implements grouped splitting and is exercised by unit tests.
+
+\textbf{Domain-reviewed relevance judgments for Experiment 1 (still open).} Experiment 1 (oracle-stage retrieval, Table~\ref{tab:oracle-results}) does not depend on the vision model at all, so it is the cheapest experiment to unlock: it only needs a scenario set of (topic, ground-truth stage, relevant chunk IDs, stage-inappropriate chunk IDs) reviewed by someone with agronomic domain knowledge. The evaluation code is ready for this: \texttt{evaluate\_retrieval.py} now computes all five baselines in Table~\ref{tab:baselines} as distinct mechanisms rather than variations on one query --- B0 (ungated) and B2--P (hard filter, fixed soft, adaptive soft) share one stage-free query and differ only in how stage compatibility is applied to the ranking, while B1 (query expansion) is evaluated separately with a stage-bearing query and no re-ranking, matching the mechanism each label describes. A two-scenario, machine-derived (not domain-reviewed) file at \texttt{data/retrieval\_scenarios.csv} exercises this code path end to end using stage beliefs from real held-out field photos; it confirms the pipeline runs correctly and, as a code-correctness check rather than a result, reproduces the expected qualitative pattern that hard top-1 filtering retrieves no relevant evidence once the predicted stage disagrees with the true one. It is not a substitute for Table~\ref{tab:oracle-results}: its relevance labels are derived automatically from stage-compatibility scores rather than reviewed by a domain expert, and $n=2$ supports no statistical claim.
+
+\textbf{Remaining vision baselines and multi-seed evaluation (resolved this revision, with new caveats).} The Small CNN and EfficientNet-B0 rows in Table~\ref{tab:vision-results} are now trained, and Table~\ref{tab:vision-multiseed} adds two further ResNet-18 seeds, once the pilot images became available locally; \texttt{src/cropstate/vision.py} gained a \texttt{SmallCNN} architecture and \texttt{scripts/compare\_vision\_baselines.py} was added to compute paired, Holm-corrected statistics across models on one shared test split (Table~\ref{tab:vision-pairwise}). Two narrower gaps remain from this work: hyperparameters were shared across architectures rather than separately tuned per model on the validation set, as the Vision Baselines subsection specifies, and the multi-seed check could not isolate model-seed variability from split variability because grouping is still per-image (the field/season gap above). Both require the same underlying fix --- real field/session metadata --- plus, for the first gap, a small per-architecture hyperparameter search once that metadata exists.
+
+\textbf{Broader knowledge base.} The IRRI Rice Knowledge Bank corpus described above, in the Knowledge Base and Retrieval Labels subsection (173 English-language chunks, additionally tagged by fertilizer/conditions/pest-disease-prevention/next-stage-action facet), is a candidate for extending retrieval coverage, particularly for the stages underrepresented in the 302-chunk Vietnamese corpus. Using it in Experiment 1 or 2 requires the same domain review as the existing corpus before any of its chunks can contribute to reported relevance judgments.
 
 \section{Threats to Validity}
 \subsection{Construct Validity}
@@ -437,7 +506,7 @@ Days after sowing are not absolute stage labels. Ground truth should be based on
 The system is intended for decision support, not autonomous agronomic authority. Outputs involving pesticides, dosage, withholding periods, or regulated actions must be grounded in current authoritative sources. Low-confidence images should trigger uncertainty notices or a request for a clearer image rather than an overconfident recommendation. Dataset releases should remove precise field locations and personal identifiers. Images collected from farms require appropriate consent and data-governance procedures.
 
 \section{Conclusion}
-This paper proposes an image-driven version of \method that recognizes rice growth stage from field images and uses the complete visual stage distribution to control evidence retrieval. The method replaces brittle top-1 filtering with confidence-aware soft gating, uses fixed care topics rather than free-form chatbot interaction, and evaluates both vision quality and downstream retrieval robustness. The scientific claims will be determined through a held-out image-classification experiment, an oracle-stage retrieval experiment, and an end-to-end image-based retrieval experiment. No effectiveness claim is made before those evaluations are completed.
+This paper proposes an image-driven version of \method that recognizes rice growth stage from field images and uses the complete visual stage distribution to control evidence retrieval. The method replaces brittle top-1 filtering with confidence-aware soft gating, uses fixed care topics rather than free-form chatbot interaction, and evaluates both vision quality and downstream retrieval robustness. A pilot held-out image-classification experiment has now been run for three trained models plus a multi-seed check (Table~\ref{tab:vision-results}, Table~\ref{tab:vision-multiseed}) and gives a preliminary, favorable answer to RQ1: all three learned models decisively beat the majority-class baseline, though a paired, Holm-corrected comparison (Table~\ref{tab:vision-pairwise}) finds no significant difference among the three models themselves at this sample size, and their hyperparameters were shared rather than independently tuned per architecture. This is not yet the field- or season-held-out benchmark the protocol specifies, because the pilot collection still records field, session, and season as unknown for every image regardless of whether the underlying image files are available locally. The oracle-stage retrieval experiment and the end-to-end image-based retrieval experiment have not been run, because no domain-reviewed relevance-judgment scenario set over the built knowledge base exists yet; a small, machine-derived (not domain-reviewed) scenario file and evaluation script now exist as a code-readiness check, described in the Future Work section, but they are not a substitute for that experiment. No effectiveness claim on RQ2, and no claim that the proposed adaptive re-ranking outperforms the baselines, is made before those evaluations are completed.
 
 \begin{thebibliography}{00}
 \bibitem{lewis2020rag} P. Lewis et al., ``Retrieval-augmented generation for knowledge-intensive NLP tasks,'' in \emph{Advances in Neural Information Processing Systems}, vol. 33, 2020, pp. 9459--9474.

@@ -29,13 +29,15 @@ def build_transform(image_size: int):
     ])
 
 
-def predict_image(checkpoint_path: str | Path, image_path: str | Path) -> dict:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def load_model(checkpoint_path: str | Path, device: torch.device) -> tuple[torch.nn.Module, int]:
     state_dict, model_name, image_size = load_checkpoint(checkpoint_path, device)
     model = build_classifier(model_name, num_classes=len(STAGE_NAMES), pretrained=False).to(device)
     model.load_state_dict(state_dict)
     model.eval()
+    return model, image_size
 
+
+def predict_with_model(model: torch.nn.Module, image_size: int, image_path: str | Path, device: torch.device) -> dict:
     image = Image.open(image_path).convert("RGB")
     tensor = build_transform(image_size)(image).unsqueeze(0).to(device)
     with torch.no_grad():
@@ -54,6 +56,12 @@ def predict_image(checkpoint_path: str | Path, image_path: str | Path) -> dict:
             for index, stage in enumerate(STAGE_NAMES)
         },
     }
+
+
+def predict_image(checkpoint_path: str | Path, image_path: str | Path) -> dict:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model, image_size = load_model(checkpoint_path, device)
+    return predict_with_model(model, image_size, image_path, device)
 
 
 def main():

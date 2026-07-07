@@ -109,3 +109,58 @@ The evaluator reports P@k, R@k, nDCG@k, and SIRR@k for ungated, hard top-1, fixe
 ## 9. Safety boundary
 
 Machine-curated records are suitable for research and internal pilot retrieval. They are not automatically approved as real-world agronomic recommendations. Production mode intentionally blocks records that have not passed domain review.
+
+## 10. Stage-first output (IRRI Rice Knowledge Bank + stage profiles)
+
+Every chunk (Vietnamese PDFs and the IRRI corpus below) now also carries a `facet`: `fertilizer`,
+`conditions`, `pest_disease_prevention`, `next_stage_action`, or `general`. This is additive —
+`topic` and `stage_compatibility` are unchanged, so `retrieval.py` and `evaluate_retrieval.py`
+(and the P@k/R@k/nDCG@k/SIRR@k numbers already reported for the 302-chunk Vietnamese corpus in
+`paper/cropstate_image_paper.tex`) are unaffected.
+
+### 10.1 Crawl the IRRI Rice Knowledge Bank
+
+```bash
+python scripts/crawl_irri_rkb.py \
+  --registry configs/knowledge_sources_irri.json \
+  --output-dir CROPSTATE_KNOWLEDGE_BASE/raw_sources_irri
+```
+
+Caches the 14 registered `knowledgebank.irri.org/step-by-step-production/...` pages (English,
+CC BY-NC-SA 3.0) as raw HTML. Re-run with `--force` to refresh.
+
+### 10.2 Chunk it (facet-aware)
+
+```bash
+PYTHONPATH=src python scripts/build_knowledge_base.py \
+  --output-dir CROPSTATE_KNOWLEDGE_BASE/chunks \
+  --web-pages-dir CROPSTATE_KNOWLEDGE_BASE/raw_sources_irri \
+  --web-registry configs/knowledge_sources_irri.json
+```
+
+Omitting `--source-root` skips the PDF rebuild entirely, so this only (re)writes the IRRI
+outputs — `rice_knowledge_irri_en.jsonl`, `rice_knowledge_irri_en_nonrestricted.jsonl`,
+`chunking_report_irri.json`, `knowledge_chunks_irri_en.csv`, `review_queue_irri.csv`,
+`source_registry_irri.json` — and **never touches** `rice_knowledge_complete.jsonl`. Pass
+`--source-root <pdf dir>` too only when you also want to rebuild the Vietnamese corpus from a
+complete local copy of the registered PDFs (all 7 files in `configs/knowledge_sources.json`);
+rebuilding it from a partial PDF set would change the paper's reported chunk counts.
+
+### 10.3 Roll up into a stage-first report
+
+```bash
+PYTHONPATH=src python scripts/build_stage_profiles.py \
+  --corpus CROPSTATE_KNOWLEDGE_BASE/chunks/rice_knowledge_complete.jsonl \
+  --corpus CROPSTATE_KNOWLEDGE_BASE/chunks/rice_knowledge_irri_en.jsonl \
+  --mode all \
+  --output CROPSTATE_KNOWLEDGE_BASE/chunks/stage_profiles.json
+```
+
+Groups chunks from one or more corpora by their dominant growth stage (from
+`stage_compatibility`) and by `facet`. Each of the 6 stages gets `fertilizer`, `conditions`,
+`pest_disease_prevention`, and `next_stage_actions` (evidence tagged `next_stage_action`, plus a
+look-ahead preview pulled from the following stage's chunks so the bucket isn't empty just
+because sources rarely phrase things as "before the next stage"). The output also lists
+`coverage_warnings` for any stage/facet combination with no evidence — current sources skew
+toward `establishment` and `ripening`, so the middle stages (tillering, stem/booting,
+reproductive, grain filling) are thin and will show up there until more sources are added.

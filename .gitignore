@@ -1,3 +1,7 @@
 .contextos/
 .venv/
 **/__pycache__/
+CROPSTATE_DATASET/
+CROPSTATE_KNOWLEDGE_BASE/
+CROPSTATE_RESULTS/
+data/

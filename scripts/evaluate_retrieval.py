@@ -101,19 +101,24 @@ def main() -> None:
         predicted_stage = normalize_stage(str(scenario.get("predicted_stage") or true_stage))
         belief = parse_belief(scenario.get("stage_belief"), predicted_stage)
         confidence = float(scenario.get("confidence") or belief.max())
-        query = str(scenario.get("query") or build_topic_query(topic, predicted_stage))
+        # B0/B2/B3/P share a stage-free query; only B1 (query expansion) gets a stage-bearing query.
+        base_query = str(scenario.get("query") or build_topic_query(topic))
+        expanded_query = build_topic_query(topic, predicted_stage)
         relevance = parse_relevance(scenario)
         relevant = {document_id for document_id, grade in relevance.items() if grade > 0}
         incompatible = parse_ids(scenario.get("incompatible_chunk_ids", scenario.get("nonmatching_chunk_ids")))
 
-        bm25_ranked, dense_ranked = retriever.retrieve(query, depth=args.depth, topic=topic)
+        bm25_ranked, dense_ranked = retriever.retrieve(base_query, depth=args.depth, topic=topic)
         base_scores = minmax(reciprocal_rank_fusion([bm25_ranked, dense_ranked]))
+        expanded_bm25, expanded_dense = retriever.retrieve(expanded_query, depth=args.depth, topic=topic)
+        expanded_scores = minmax(reciprocal_rank_fusion([expanded_bm25, expanded_dense]))
         methods = {
-            "ungated": sorted(base_scores, key=base_scores.get, reverse=True),
-            "hard_top1": hard_filter(base_scores, chunk_map, int(np.argmax(belief))),
-            "fixed_soft": rerank(base_scores, chunk_map, belief, confidence, fixed_beta=0.20),
-            "adaptive_soft": rerank(base_scores, chunk_map, belief, confidence),
-            "oracle": rerank(base_scores, chunk_map, one_hot(true_stage), 1.0),
+            "B0_ungated": sorted(base_scores, key=base_scores.get, reverse=True),
+            "B1_query_expansion": sorted(expanded_scores, key=expanded_scores.get, reverse=True),
+            "B2_hard_filter": hard_filter(base_scores, chunk_map, int(np.argmax(belief))),
+            "B3_fixed_soft": rerank(base_scores, chunk_map, belief, confidence, fixed_beta=0.20),
+            "P_adaptive_soft": rerank(base_scores, chunk_map, belief, confidence),
+            "oracle_reference": rerank(base_scores, chunk_map, one_hot(true_stage), 1.0),
         }
         for method, ranking in methods.items():
             precision, recall = precision_recall_at_k(ranking, relevant, args.k)

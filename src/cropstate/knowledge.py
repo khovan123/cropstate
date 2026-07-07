@@ -105,6 +105,7 @@ class KnowledgeChunk:
     topic: str
     stage_compatibility: tuple[float, ...]
     authority_score: float
+    facet: str = "general"
     source_id: str = ""
     review_status: str = "unreviewed"
     production_eligible: bool = False
@@ -138,6 +139,7 @@ class KnowledgeChunk:
             topic=topic or "general_crop_care",
             stage_compatibility=compatibility,
             authority_score=float(record.get("authority_score", 0.5) or 0.5),
+            facet=str(record.get("facet", "")).strip() or "general",
             source_id=str(record.get("source_id", "")).strip(),
             review_status=str(record.get("review_status", "unreviewed")).strip().lower(),
             production_eligible=_parse_bool(record.get("production_eligible"), False),
@@ -241,11 +243,13 @@ def write_knowledge_chunks(chunks: Sequence[KnowledgeChunk], path: str | Path) -
 
 def knowledge_coverage(chunks: Sequence[KnowledgeChunk]) -> dict[str, Any]:
     by_topic: dict[str, int] = {}
+    by_facet: dict[str, int] = {}
     by_source: dict[str, int] = {}
     by_review_status: dict[str, int] = {}
     stage_high_compatibility = {name: 0 for name in STAGE_NAMES}
     for chunk in chunks:
         by_topic[chunk.topic] = by_topic.get(chunk.topic, 0) + 1
+        by_facet[chunk.facet] = by_facet.get(chunk.facet, 0) + 1
         by_source[chunk.source_id] = by_source.get(chunk.source_id, 0) + 1
         by_review_status[chunk.review_status] = by_review_status.get(chunk.review_status, 0) + 1
         for index, stage in enumerate(STAGE_NAMES):
@@ -254,6 +258,7 @@ def knowledge_coverage(chunks: Sequence[KnowledgeChunk]) -> dict[str, Any]:
     return {
         "total_chunks": len(chunks),
         "by_topic": dict(sorted(by_topic.items())),
+        "by_facet": dict(sorted(by_facet.items())),
         "by_source": dict(sorted(by_source.items())),
         "by_review_status": dict(sorted(by_review_status.items())),
         "stage_high_compatibility": stage_high_compatibility,

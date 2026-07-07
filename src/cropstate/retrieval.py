@@ -59,13 +59,20 @@ def tokenize(text: str) -> list[str]:
     return re.findall(r"[0-9A-Za-zÀ-ỹĐđ]+", text.lower(), flags=re.UNICODE)
 
 
-def build_topic_query(topic: str, stage_name: str, language: str = "vi") -> str:
+def build_topic_query(topic: str, stage_name: str | None = None, language: str = "vi") -> str:
+    if language == "vi":
+        topic_label = VI_TOPIC_LABELS.get(topic, topic.replace("_", " "))
+        if not stage_name:
+            return f"Bằng chứng {topic_label} phù hợp với lúa."
+        stage = stage_name.strip().lower()
+        display = STAGE_DISPLAY_NAMES.get(stage, stage_name)
+        bbch = STAGE_BBCH_RANGES.get(stage, "")
+        return f"Bằng chứng {topic_label} phù hợp với lúa ở giai đoạn {display}, BBCH {bbch}."
+    if not stage_name:
+        return f"Rice {topic.replace('_', ' ')} evidence."
     stage = stage_name.strip().lower()
     display = STAGE_DISPLAY_NAMES.get(stage, stage_name)
     bbch = STAGE_BBCH_RANGES.get(stage, "")
-    if language == "vi":
-        topic_label = VI_TOPIC_LABELS.get(topic, topic.replace("_", " "))
-        return f"Bằng chứng {topic_label} phù hợp với lúa ở giai đoạn {display}, BBCH {bbch}."
     return f"Rice {topic.replace('_', ' ')} evidence applicable to {display}, BBCH {bbch}."
 
 

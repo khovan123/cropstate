@@ -5,7 +5,31 @@ import torch
 from torch import nn
 
 
+class SmallCNN(nn.Module):
+    """Shallow from-scratch CNN baseline (no pretraining), per the paper's Vision Baselines."""
+
+    def __init__(self, num_classes: int = 6):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 16, 3, padding=1), nn.BatchNorm2d(16), nn.ReLU(inplace=True), nn.MaxPool2d(2),
+            nn.Conv2d(16, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True), nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(inplace=True), nn.MaxPool2d(2),
+            nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(inplace=True), nn.AdaptiveAvgPool2d(1),
+        )
+        self.classifier = nn.Linear(128, num_classes)
+
+    def get_classifier(self) -> nn.Module:
+        return self.classifier
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        return self.classifier(x)
+
+
 def build_classifier(model_name: str = "resnet18", num_classes: int = 6, pretrained: bool = True) -> nn.Module:
+    if model_name == "small_cnn":
+        return SmallCNN(num_classes=num_classes)
     return timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
 
 
