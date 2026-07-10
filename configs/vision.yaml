@@ -18,5 +18,12 @@ model_name: resnet18
 pretrained: true
 early_stopping_patience: 7
 split_group_column: parent_image_id
+# Leak-free grouping: near-duplicate images (avg-hash Hamming <= threshold, across
+# ALL stages) are forced into one split group. 0 disables. Matches the leakage
+# audit / encode_parent_ids threshold so the audit reports 0 test/val leak pairs.
+leak_hamming_threshold: 10
+# Class-balanced WeightedRandomSampler for the train loader (rare-stage recall).
+# Left off for baseline/ablation parity; enable via --balanced-sampler for the final model.
+balanced_sampler: false
 validation_size: 0.15
 test_size: 0.15

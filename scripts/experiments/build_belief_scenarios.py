@@ -34,7 +34,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--logits-index", default="CROPSTATE_RESULTS/novelty/logits/index.json")
     parser.add_argument("--model", default="resnet18")
-    parser.add_argument("--corpus", default="CROPSTATE_KNOWLEDGE_BASE/chunks/rice_knowledge_complete.jsonl")
+    parser.add_argument("--corpus", default="CROPSTATE_KNOWLEDGE_BASE/chunks/rice_knowledge_irri_en_nonrestricted.jsonl")
     parser.add_argument("--calibration", default="CROPSTATE_RESULTS/novelty/calibration.json",
                         help="If present, also emit a temperature-calibrated belief column.")
     parser.add_argument("--rel-threshold", type=float, default=0.5)

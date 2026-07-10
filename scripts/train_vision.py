@@ -11,7 +11,7 @@ import pandas as pd
 import yaml
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision import transforms
 from tqdm import tqdm
 from sklearn.metrics import recall_score
@@ -21,7 +21,7 @@ from cropstate.constants import STAGE_BBCH_RANGES, STAGE_NAMES, STAGE_TO_ID
 from cropstate.dataset import RiceStageDataset, canonical_stage_label
 from cropstate.losses import build_loss
 from cropstate.metrics import expected_calibration_error, multiclass_brier, vision_metrics
-from cropstate.splits import assert_no_group_leakage
+from cropstate.splits import assert_no_group_leakage, assign_leakfree_groups
 from cropstate.vision import build_classifier
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -272,6 +272,11 @@ def main():
     parser.add_argument("--test-size", type=float)
     parser.add_argument("--no-pretrained", action="store_true")
     parser.add_argument("--no-class-weights", action="store_true")
+    parser.add_argument("--balanced-sampler", dest="balanced_sampler", action="store_true", default=None,
+                        help="Class-balanced WeightedRandomSampler for the train loader (helps rare stages).")
+    parser.add_argument("--no-balanced-sampler", dest="balanced_sampler", action="store_false")
+    parser.add_argument("--leak-hamming-threshold", type=int, default=None,
+                        help="Avg-hash Hamming radius for leak-free grouping when creating a split (0 disables).")
     parser.add_argument("--loss", choices=["ce", "focal", "ordinal"], default="ce",
                         help="ce (default), focal (imbalance), or ordinal (expectation-regularized CE).")
     parser.add_argument("--focal-gamma", type=float, default=2.0)
@@ -302,6 +307,16 @@ def main():
     test_size = args.test_size if args.test_size is not None else float(config.get("test_size", 0.15))
     pretrained = bool(config.get("pretrained", True)) and not args.no_pretrained
     split_group_column = args.split_group_column or config.get("split_group_column", "parent_image_id")
+    leak_hamming_threshold = (
+        args.leak_hamming_threshold
+        if args.leak_hamming_threshold is not None
+        else int(config.get("leak_hamming_threshold", 10))
+    )
+    balanced_sampler = (
+        args.balanced_sampler
+        if args.balanced_sampler is not None
+        else bool(config.get("balanced_sampler", False))
+    )
 
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -323,6 +338,17 @@ def main():
     if split_group_column not in df.columns:
         split_group_column = "parent_image_id"
     if "split" not in df.columns or df["split"].isna().any() or (df["split"] == "unassigned").any():
+        if leak_hamming_threshold and leak_hamming_threshold > 0:
+            # Group near-duplicate images (across all stages) so no visual near-dup
+            # can straddle train/val/test — closes the cross-stage leak the audit found.
+            df = assign_leakfree_groups(
+                df,
+                data_root=args.data_root,
+                hamming_threshold=leak_hamming_threshold,
+                group_col="parent_image_id",
+                out_col="leak_group",
+            )
+            split_group_column = "leak_group"
         df = grouped_stratified_split(
             df,
             group_col=split_group_column,
@@ -352,7 +378,15 @@ def main():
     train = dataset_from_split(df, "train", args.data_root, train_tf)
     val = dataset_from_split(df, "validation", args.data_root, eval_tf)
     test = optional_dataset_from_split(df, "test", args.data_root, eval_tf)
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    if balanced_sampler:
+        train_label_ids = train.df["macro_stage"].map(canonical_stage_label).map(STAGE_TO_ID).to_numpy()
+        class_freq = np.bincount(train_label_ids, minlength=len(STAGE_NAMES))
+        inverse_freq = 1.0 / np.clip(class_freq, 1, None)
+        sample_weights = torch.as_tensor(inverse_freq[train_label_ids], dtype=torch.double)
+        sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
+        train_loader = DataLoader(train, batch_size=batch_size, sampler=sampler, num_workers=num_workers)
+    else:
+        train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     test_loader = DataLoader(test, batch_size=batch_size, shuffle=False, num_workers=num_workers) if test is not None else None
 
@@ -441,6 +475,9 @@ def main():
                     "epochs": epochs,
                     "pretrained": pretrained,
                     "split_group_column": split_group_column,
+                    "leak_hamming_threshold": leak_hamming_threshold,
+                    "balanced_sampler": balanced_sampler,
+                    "loss": args.loss,
                     "validation_size": val_size,
                     "test_size": test_size,
                 },
