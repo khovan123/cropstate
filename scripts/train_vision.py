@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from sklearn.model_selection import train_test_split
 
 from cropstate.constants import STAGE_BBCH_RANGES, STAGE_NAMES, STAGE_TO_ID
 from cropstate.dataset import RiceStageDataset, canonical_stage_label
+from cropstate.losses import build_loss
 from cropstate.metrics import expected_calibration_error, multiclass_brier, vision_metrics
 from cropstate.splits import assert_no_group_leakage
 from cropstate.vision import build_classifier
@@ -270,6 +272,10 @@ def main():
     parser.add_argument("--test-size", type=float)
     parser.add_argument("--no-pretrained", action="store_true")
     parser.add_argument("--no-class-weights", action="store_true")
+    parser.add_argument("--loss", choices=["ce", "focal", "ordinal"], default="ce",
+                        help="ce (default), focal (imbalance), or ordinal (expectation-regularized CE).")
+    parser.add_argument("--focal-gamma", type=float, default=2.0)
+    parser.add_argument("--ordinal-lambda", type=float, default=0.5)
     parser.add_argument("--resume-checkpoint", help="Continue fine-tuning from a previous best_checkpoint.pt or state_dict.")
     parser.add_argument("--write-manifest", default="manifest.csv")
     args = parser.parse_args()
@@ -299,7 +305,8 @@ def main():
 
     torch.manual_seed(seed)
     np.random.seed(seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu") if os.environ.get("CROPSTATE_FORCE_CPU") == "1" \
+        else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
     manifest_output = output / args.write_manifest
@@ -341,12 +348,13 @@ def main():
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
 
+    num_workers = int(os.environ.get("CROPSTATE_NUM_WORKERS", "2"))
     train = dataset_from_split(df, "train", args.data_root, train_tf)
     val = dataset_from_split(df, "validation", args.data_root, eval_tf)
     test = optional_dataset_from_split(df, "test", args.data_root, eval_tf)
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=2)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=2)
-    test_loader = DataLoader(test, batch_size=batch_size, shuffle=False, num_workers=2) if test is not None else None
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader = DataLoader(test, batch_size=batch_size, shuffle=False, num_workers=num_workers) if test is not None else None
 
     model = build_classifier(
         model_name,
@@ -365,11 +373,18 @@ def main():
     if freeze_backbone_epochs > 0:
         set_backbone_trainable(model, trainable=False)
     if args.no_class_weights:
-        criterion = nn.CrossEntropyLoss()
+        class_weights = None
     else:
         class_counts = df[df.split == "train"]["macro_stage"].map(STAGE_TO_ID).value_counts().reindex(range(len(STAGE_NAMES)), fill_value=0)
         weights = class_counts.sum() / (len(STAGE_NAMES) * class_counts.clip(lower=1))
-        criterion = nn.CrossEntropyLoss(weight=torch.tensor(weights.to_numpy(dtype=np.float32), device=device))
+        class_weights = torch.tensor(weights.to_numpy(dtype=np.float32), device=device)
+    criterion = build_loss(
+        args.loss,
+        class_weights=class_weights,
+        num_classes=len(STAGE_NAMES),
+        focal_gamma=args.focal_gamma,
+        ordinal_lambda=args.ordinal_lambda,
+    )
     optimizer = build_optimizer(model, learning_rate, backbone_learning_rate, weight_decay)
     resume_validation = resume_metadata.get("validation") or {}
     best_f1 = float(resume_validation.get("macro_f1", -1.0) or -1.0)
