@@ -333,6 +333,7 @@ def main():
         df = pd.read_csv(args.manifest)
     else:
         df = build_manifest_from_stage_folders(args.data_root)
+    print(f"[train] device={device} | manifest {len(df)} rows", flush=True)
 
     df["macro_stage"] = df["macro_stage"].map(canonical_stage_label)
     if split_group_column not in df.columns:
@@ -341,6 +342,11 @@ def main():
         if leak_hamming_threshold and leak_hamming_threshold > 0:
             # Group near-duplicate images (across all stages) so no visual near-dup
             # can straddle train/val/test — closes the cross-stage leak the audit found.
+            # NOTE: this hashes every image once (slow over a network drive); pass
+            # --leak-hamming-threshold 0 to skip it when parent_image_id already groups
+            # scene crops reliably (e.g. RiceSEG).
+            print(f"[train] hashing {len(df)} images for leak-free groups "
+                  f"(threshold={leak_hamming_threshold})...", flush=True)
             df = assign_leakfree_groups(
                 df,
                 data_root=args.data_root,
@@ -356,6 +362,7 @@ def main():
             val_size=val_size,
             seed=seed,
         )
+        print(f"[train] split -> {df['split'].value_counts().to_dict()}", flush=True)
     assert_no_group_leakage(df, [split_group_column, "parent_image_id"])
     df.to_csv(manifest_output, index=False)
 
@@ -451,7 +458,9 @@ def main():
             "train": train_metrics,
             "validation": val_metrics,
         })
-        print(global_epoch, val_metrics)
+        print(f"[epoch {global_epoch}] phase={phase} "
+              f"val_acc={val_metrics['accuracy']:.3f} val_f1={val_metrics['macro_f1']:.3f} "
+              f"val_loss={val_metrics['loss']:.3f}", flush=True)
         if val_metrics["macro_f1"] > best_f1:
             best_f1 = val_metrics["macro_f1"]
             torch.save({

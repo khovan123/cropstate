@@ -133,7 +133,9 @@ def main():
 
     # Emit a leak-free split: keep whole hash-clusters together (grouped by dup_cluster),
     # stratified by stage, sizes matched to the original split proportions.
-    df.to_csv(args.grouped_manifest, index=False)
+    grouped = Path(args.grouped_manifest)
+    grouped.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(grouped, index=False)
 
     print(json.dumps({k: v for k, v in payload.items() if k != "example_leak_pairs"}, indent=2))
 
