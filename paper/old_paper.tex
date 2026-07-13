@@ -1,0 +1,325 @@
+% !TeX program = xelatex
+\documentclass{llncs}
+
+\usepackage{fontspec}
+\setmainfont{Liberation Serif}
+\setsansfont{Liberation Sans}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{pgf-pie}
+\pgfplotsset{compat=1.17}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
+
+\begin{document}
+
+\title{CropState-Vision: A Pilot Study of Six-Stage Rice
+Growth Classification from Field Images}
+
+\author{Lê Bảo Nhi \and Phan Nguyễn Quốc Minh \and Lê Khánh Nhi}
+
+\institute{FPT University, Da Nang, Viet Nam\\
+\email{lebaonhi0805@gmail.com, minhpnq1807@gmail.com, nhilekhanh29@gmail.com}}
+
+\maketitle
+
+\begin{abstract}
+Decision-support systems that adapt agricultural information to crop development first need a reliable way to recognize the growth stage itself. This paper presents CropState-Vision, a small-scale image-classification study that groups rice development into six BBCH-derived macro-stages and asks whether these stages can be told apart from field photographs. Four baselines are compared on a 552-image collection: majority-class prediction, a shallow convolutional network trained from scratch, fine-tuned ResNet-18, and fine-tuned EfficientNet-B0, all evaluated on the same 83-image held-out split. Beyond accuracy, we report macro-F1, Mean Absolute Stage Distance (MASD), Expected Calibration Error (ECE), Brier score, bootstrap confidence intervals, exploratory paired comparisons, and a three-seed check for ResNet-18. All three trained models clearly beat the majority baseline, and ResNet-18 comes out ahead on point estimates (0.807 accuracy, 0.745 macro-F1, 0.277 MASD). That said, after correcting for multiple comparisons, none of the three architectures can be called reliably better than another at this sample size. The results are best read as evidence that six-stage classification is workable in principle, not as proof that the system is ready to deploy: the dataset has severe class imbalance, only six reproductive-stage images in the test set, hyperparameters shared across architectures rather than tuned individually, no recorded field or capture-session metadata, a real possibility of acquisition leakage, and labels that have not been independently reviewed by an agronomist. Confidence-aware retrieval, the natural next step for this line of work, is left for future work and is not evaluated here.
+
+\keywords{rice growth stage \and BBCH \and image classification \and transfer learning \and calibration \and agricultural computer vision \and pilot study}
+\end{abstract}
+
+\section{Introduction}
+
+Agricultural management follows the crop, not the calendar. Water management, nutrient application, disease surveillance, and harvest preparation all differ across establishment, tillering, reproductive development, grain filling, and ripening, so any digital decision-support system needs to know which of these stages a field is currently in before it can safely act on that information.
+
+Field images are an obvious candidate input, since phenological development shows up visually through leaf development, tiller formation, stem elongation, panicle emergence, grain formation, and ripening. In practice, though, stage recognition is hardest exactly where it matters: near stage boundaries, and under everyday variation in viewpoint, lighting, plant density, field background, and camera distance. A model can also be confidently wrong, which is a particular risk for a class with few training examples.
+
+This work sits inside a broader idea we call CropState, which represents crop development as a maintained belief over stages rather than a single static label; image classification would supply the visual evidence that feeds that belief. Here we deliberately narrow the scope to that upstream vision problem alone, because the downstream retrieval side of CropState needs agronomic relevance judgments from domain reviewers that we do not yet have. The question this paper actually answers is narrower and more concrete: does the available image collection give credible preliminary evidence that six rice macro-stages can be recognized at all?
+
+The contributions are:
+\begin{enumerate}
+    \item a six-class rice growth-stage formulation anchored to BBCH-derived macro-stages;
+    \item a controlled comparison of majority, shallow-CNN, ResNet-18, and EfficientNet-B0 baselines on one shared split;
+    \item an evaluation that treats the stages as ordered and reports calibration alongside accuracy, using macro-F1, MASD, ECE, Brier score, bootstrap intervals, paired analysis, and multi-seed checks;
+    \item an explicit account of the data limitations that would need to be closed before this line of work supports field-level or downstream decision-support claims.
+\end{enumerate}
+
+\section{Related Work}
+
+\subsection{Phenological Growth Stages and BBCH}
+
+The BBCH scale gives standardized numerical descriptions of observable plant development \cite{meier2001bbch,lancashire1991uniform}: the first digit marks a principal stage, the second a more detailed sub-stage. We group fine-grained rice codes into six macro-stages for image classification; this grouping is an experimental convenience and is not meant to replace the BBCH standard itself. A systematic review of deep learning in plant phenology found that most existing studies still target only a handful of coarse stages and rarely report calibration or ordinal error structure \cite{katal2022deep} — a gap the evaluation protocol here is designed to address.
+
+\subsection{Image-Based Rice Growth-Stage Recognition}
+
+Machine-learning methods have already been used to estimate rice development from field or aerial imagery \cite{tan2022machine}. Detection-based work such as RiceRes2Net pairs a Res2Net backbone with a feature pyramid network to localize rice panicles and recognize growth stage at the same time \cite{tan2023ricepanicle}, and lighter YOLO variants of the same idea have since shipped as smartphone applications \cite{zheng2025android}. These systems target panicle-level detection across three reproductive sub-stages; CropState-Vision instead classifies whole images across the full vegetative-to-ripening range, which is a different and coarser problem. Across this literature, reported performance depends heavily on how stages are defined, how images were captured, sample size, and how the train/test split was constructed — a model that looks accurate on a random split can still fail on a new field or season if it picked up background or acquisition cues rather than plant morphology.
+
+Table~\ref{tab:positioning} makes the gap this paper targets more concrete. The closest prior work either covers a narrower slice of the growth cycle (three seedling or three reproductive sub-stages, rather than establishment through ripening) or reports accuracy-family metrics only, with no calibration measure, no ordinal error metric, and no correction for multiple comparisons when several architectures are compared. CropState-Vision does not claim a new architecture or a new dataset; the contribution is the combination of full-cycle stage coverage with a more complete evaluation protocol than this specific line of work has used so far. Whether that combination is worth the added complexity for a 552-image collection is exactly the question the rest of this paper investigates.
+
+\begin{table}[t]
+\centering
+\caption{How CropState-Vision's scope and evaluation protocol compare to the closest prior rice growth-stage studies.}
+\label{tab:positioning}
+\small
+\begin{tabular}{p{0.24\textwidth}p{0.24\textwidth}>{\centering\arraybackslash}p{0.1\textwidth}>{\centering\arraybackslash}p{0.11\textwidth}p{0.19\textwidth}}
+\toprule
+\textbf{Study} & \textbf{Stage coverage} & \textbf{Calib.} & \textbf{Ordinal} & \textbf{Sig. testing} \\
+\midrule
+Seedling HOG-SVM / EfficientNet \cite{tan2022machine} & 3 seedling sub-stages & -- & -- & -- \\
+RiceRes2Net \cite{tan2023ricepanicle} & 3 reproductive sub-stages (panicle-level) & -- & -- & -- \\
+Smartphone YOLO app \cite{zheng2025android} & 3 reproductive sub-stages (panicle-level) & -- & -- & -- \\
+\textbf{CropState-Vision (this work)} & \textbf{6 macro-stages, establishment--ripening} & \textbf{ECE, Brier} & \textbf{MASD} & \textbf{Bootstrap CI, Holm} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Transfer Learning and Confidence}
+
+ResNet and EfficientNet are now standard pretrained backbones for image classification \cite{he2016deep,tan2019efficientnet}, built on the earlier line of AlexNet \cite{krizhevsky2012alexnet}, VGG \cite{simonyan2015vgg}, and batch normalization \cite{ioffe2015batchnorm}. Vision Transformers offer a patch-based alternative that has started to appear in fine-grained agricultural imagery \cite{dosovitskiy2021vit}, though their appetite for data makes them a harder fit for a 552-image collection than an ImageNet-pretrained CNN \cite{deng2009imagenet}. More generally, transfer learning is exactly the tool one reaches for when the target dataset is small \cite{pan2010survey}. Accuracy alone is not the whole story, though: a downstream system needs to know when to trust a prediction, and calibration metrics such as temperature scaling exist precisely to check whether softmax confidence tracks empirical correctness \cite{guo2017calibration}, building on earlier binning-based estimators of calibration error \cite{naeini2015calibration}.
+
+\subsection{Class Imbalance, Ordinal Structure, and Reliable Evaluation}
+
+The establishment and reproductive stages in this collection are both severely under-represented, which is a familiar problem in image classification; focal loss \cite{lin2017focal} and data augmentation \cite{shorten2019survey} are two standard mitigations, neither of which is applied here. The six macro-stages are also ordered rather than nominal, and the ordinal regression literature is clear that treating ordered labels as if they had no order throws away useful structure \cite{gutierrez2016ordinal} — hence the use of MASD alongside accuracy in this study. The statistical protocol follows established practice: non-parametric bootstrap confidence intervals \cite{efron1993bootstrap}, Holm-corrected paired significance tests \cite{holm1979sequential}, and McNemar's test for paired binary outcomes \cite{mcnemar1947note}. Finally, the dataset limitations discussed in Section~\ref{sec:limitations} echo a broader concern in machine-learning-based science: undocumented data leakage is a common and often quiet cause of results that do not replicate \cite{kapoor2023leakage}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{images/fig1_scope.png}
+\caption{Scope of the present study. The solid path (blue) is evaluated in this paper; downstream decision support (gray) is future work. The probability bars in step 4 illustrate the output format and are not measured values from Table~\ref{tab:results}.}
+\label{fig:scope}
+\end{figure}
+
+\section{Task Formulation}
+
+\subsection{Research Questions and Hypotheses}
+
+Table~\ref{tab:rq} lists the three research questions this pilot experiment is designed to answer, along with the hypothesis attached to each.
+
+\begin{table}[t]
+\centering
+\caption{Research questions and hypotheses for the single pilot experiment.}
+\label{tab:rq}
+\small
+\begin{tabular}{p{0.06\textwidth}p{0.46\textwidth}p{0.4\textwidth}}
+\toprule
+\textbf{ID} & \textbf{Research question} & \textbf{Hypothesis} \\
+\midrule
+RQ1 & To what extent can learned image classifiers distinguish six BBCH-derived rice macro-stages on the available pilot split? &
+H1: Learned classifiers outperform the majority-class baseline in accuracy, macro-F1, and MASD. \\[4pt]
+RQ2 & Under one shared training recipe, is a fine-tuned pretrained backbone reliably better than a shallow CNN trained from scratch? &
+H2: Pretrained backbones achieve higher accuracy and macro-F1 than the shallow CNN. \\[4pt]
+RQ3 & What error patterns and data limitations constrain interpretation of the pilot results? &
+H3: Most ResNet-18 errors occur between adjacent stages, and the most under-represented stage shows the clearest drop in recall. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Six Rice Macro-Stages}
+
+Answering RQ1--RQ3 first requires a precise, ordered label set to classify against. Let $\Phi = \langle \phi_1,\dots,\phi_6 \rangle$ be the ordered stage set in Table~\ref{tab:stages}. For input image $I$, a model $f_\theta$ produces logits $o = f_\theta(I)$, and the stage distribution is
+\begin{equation}
+p(\phi_i \mid I) = \mathrm{softmax}(o/T)_i,
+\label{eq:softmax}
+\end{equation}
+where $T > 0$ is a temperature parameter estimated from validation data when calibration is applied. The predicted class is
+\begin{equation}
+\hat{\phi} = \arg\max_i \, p(\phi_i \mid I).
+\label{eq:argmax}
+\end{equation}
+We keep the full distribution rather than only the top-1 label, since adjacent stages are often both plausible and later CropState modules are expected to consume uncertainty directly.
+
+\begin{table}[t]
+\centering
+\caption{Rice macro-stages used in the pilot study.}
+\label{tab:stages}
+\begin{tabular}{lcl}
+\toprule
+\textbf{Group} & \textbf{BBCH} & \textbf{Label} \\
+\midrule
+Germination and leaf development & 00--19 & Establishment \\
+Tillering & 20--29 & Tillering \\
+Stem elongation and booting & 30--49 & Stem/booting \\
+Heading and flowering & 50--69 & Reproductive \\
+Grain development & 70--79 & Grain filling \\
+Ripening & 80--89 & Ripening \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Materials and Methods}
+
+\subsection{Dataset}
+
+The collection contains 552 images, split into 386 training, 83 validation, and 83 test images under seed 42. Training-set counts are 24 establishment, 104 tillering, 38 stem/booting, 29 reproductive, 87 grain filling, and 104 ripening images (Fig.~\ref{fig:dist}); the reproductive class is thin throughout, with only six images surviving into the test split.
+
+\begin{figure}[t]
+\centering
+\resizebox{0.72\textwidth}{!}{\input{images/dataset_distribution.tex}}
+\caption{Class distribution of the 386-image training split. Establishment and reproductive classes are markedly under-represented relative to tillering and ripening.}
+\label{fig:dist}
+\end{figure}
+
+Labels come directly from stage-folder assignments and have not gone through independent double annotation or formal agronomic review. Field, capture-session, season, and parent-image identifiers are not recorded in the current manifest, so the split is effectively an image-level split: nothing rules out overlapping patches, near-duplicates, or images from the same acquisition session ending up on both sides of the train/test boundary. Read the results below with that caveat in mind — they are a feasibility estimate, not a field-held-out benchmark.
+
+A cleaner version of this dataset would record, at minimum, an image identifier, parent-image identifier, field, capture session, date, season, variety, days after sowing, BBCH code, macro-stage, source, license, and annotation status, and would be preceded by a corpus-wide audit for corrupted exports, near-black images, dynamic-range compression, and duplicates.
+
+\subsection{Compared Models}
+
+Four baselines are evaluated:
+\begin{itemize}
+    \item \textbf{Majority class}: always predicts tillering, the largest class in the test split;
+    \item \textbf{Small CNN}: a shallow convolutional network trained from scratch;
+    \item \textbf{ResNet-18}: an ImageNet-pretrained backbone fine-tuned on this dataset (residual block shown in Fig.~\ref{fig:resnet});
+    \item \textbf{EfficientNet-B0}: an ImageNet-pretrained lightweight backbone fine-tuned on the same split (MBConv block shown in Fig.~\ref{fig:effnet}).
+\end{itemize}
+
+All three learned models share one training recipe, including the same epoch budget and freeze-then-unfreeze strategy. That keeps the comparison controlled at the engineering level, but it is not a comparison at each architecture's optimum, since hyperparameters were not tuned independently per model.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.62\textwidth]{images/fig_resnet_block.png}
+\caption{Basic residual block used within the fine-tuned ResNet-18 baseline. Two $3\times3$ convolutions with an identity shortcut, followed by ReLU activation.}
+\label{fig:resnet}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.68\textwidth]{images/fig_effnet_block.png}
+\caption{Mobile inverted bottleneck (MBConv) block used within the fine-tuned EfficientNet-B0 baseline. The block applies expansion, depthwise convolution, squeeze-and-excitation attention, and projection, with a residual connection when stride $=1$ and input/output channels match.}
+\label{fig:effnet}
+\end{figure}
+
+\subsection{Evaluation Metrics}
+
+Accuracy captures overall correctness; macro-F1 weights each class equally regardless of its size. Since the stages are ordered rather than nominal, we also report Mean Absolute Stage Distance \cite{gutierrez2016ordinal},
+\begin{equation}
+\mathrm{MASD} = \frac{1}{N}\sum_{j=1}^{N} \bigl| \mathrm{index}(\hat{\phi}_j) - \mathrm{index}(\phi_j^*) \bigr|,
+\label{eq:masd}
+\end{equation}
+which separates an adjacent-stage mistake from a prediction that is several stages off — a distinction accuracy alone cannot make.
+
+Confidence quality is summarized with Expected Calibration Error and the multi-class Brier score. We compute non-parametric bootstrap confidence intervals \cite{efron1993bootstrap} from 10,000 resamples of the 83 test images, and run exploratory paired comparisons on the stored per-image correctness vectors with Holm correction \cite{holm1979sequential} across six model pairs. Because correctness is binary, a confirmatory follow-up should also report McNemar's test \cite{mcnemar1947note}.
+
+\subsection{Multi-Seed Check}
+
+ResNet-18 is retrained with seeds 7 and 123 as a lightweight robustness check. Because the seed here reseeds both model initialization and the image-level split, the resulting spread reflects combined model and split variability rather than initialization sensitivity on its own.
+
+\section{Results}
+
+All three trained models clear the majority baseline by a wide margin (Table~\ref{tab:results}, Fig.~\ref{fig:benchmark}). ResNet-18 comes out on top with 0.807 accuracy, 0.745 macro-F1, and 0.277 MASD; Small CNN follows close behind at 0.759 accuracy and 0.702 macro-F1; EfficientNet-B0 trails at 0.711 accuracy and 0.614 macro-F1 under the same shared recipe.
+
+\begin{table}[t]
+\centering
+\caption{Pilot results on one shared 83-image test split (552 images total; split seed 42).}
+\label{tab:results}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Model} & \textbf{Acc.} & \textbf{Macro-F1} & \textbf{MASD}$\downarrow$ & \textbf{ECE}$\downarrow$ & \textbf{Brier}$\downarrow$ & \textbf{95\% CI (acc.)} \\
+\midrule
+Majority class (tillering)     & 0.277 & 0.072 & 2.048 & n/a   & n/a   & [0.181, 0.373] \\
+Small CNN (from scratch)       & 0.759 & 0.702 & 0.434 & 0.189 & 0.400 & [0.663, 0.843] \\
+ResNet-18 (pretrained)         & 0.807 & 0.745 & 0.277 & 0.250 & 0.369 & [0.723, 0.892] \\
+EfficientNet-B0 (pretrained)   & 0.711 & 0.614 & 0.422 & 0.183 & 0.421 & [0.614, 0.807] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\resizebox{0.8\textwidth}{!}{\input{images/benchmark.tex}}
+\caption{Accuracy and macro-F1 of the four baselines on the shared 83-image test split.}
+\label{fig:benchmark}
+\end{figure}
+
+Each learned model differs significantly from the majority baseline in the paired analysis (Table~\ref{tab:paired}), which is enough to support H1. The three learned models do not differ significantly from one another once the Holm correction is applied, so H2 — that a pretrained backbone reliably beats a shallow CNN trained from scratch — is not supported at this sample size.
+
+\begin{table}[t]
+\centering
+\caption{Exploratory paired comparisons on the shared test split (Wilcoxon signed-rank test with Holm correction).}
+\label{tab:paired}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Pair} & \textbf{Acc. difference} & \textbf{95\% CI} & \textbf{Holm-adj. $p$} \\
+\midrule
+Majority vs. ResNet-18          & $-0.530$ & [$-0.639$, $-0.422$] & $<0.0001$ \\
+Majority vs. Small CNN          & $-0.482$ & [$-0.614$, $-0.349$] & $<0.0001$ \\
+Majority vs. EfficientNet-B0    & $-0.434$ & [$-0.554$, $-0.313$] & $<0.0001$ \\
+ResNet-18 vs. Small CNN         & $+0.048$ & [$-0.048$, $0.145$]  & $0.692$ \\
+ResNet-18 vs. EfficientNet-B0   & $+0.096$ & [$0.012$, $0.193$]   & $0.137$ \\
+Small CNN vs. EfficientNet-B0   & $+0.048$ & [$-0.060$, $0.157$]  & $0.692$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Looking at where ResNet-18 goes wrong: it misses 16 of 83 test images, and 12 of those (75\%) land on an adjacent stage rather than a distant one; the remaining 4 cross two or more stage boundaries (Fig.~\ref{fig:errors}). The one clearly weak spot is the reproductive class, where recall drops to 0.167 against roughly 0.68--1.00 for every other class — though with only six reproductive test images, this is one image away from looking very different, so treat it as a symptom of scarcity rather than a stable property of the model. EfficientNet-B0 fares even worse on the same six images, missing all of them.
+
+\begin{figure}[t]
+\centering
+\resizebox{0.5\textwidth}{!}{\input{images/error_breakdown.tex}}
+\caption{Breakdown of ResNet-18's 16 misclassified test images by stage distance.}
+\label{fig:errors}
+\end{figure}
+
+Calibration tells a separate story from accuracy. ResNet-18's raw softmax output has an ECE of 0.250, which is too high to trust for anything approaching automated routing. EfficientNet-B0 is better calibrated (lower ECE) despite being the weaker classifier overall — a reminder that calibration and discriminative accuracy are independent properties, not two views of the same thing.
+
+Across three seeds, ResNet-18's accuracy stays in a narrow 0.795--0.807 band (Table~\ref{tab:seeds}), which is a mildly encouraging stability signal. It is not, however, a clean estimate of initialization variance, since each seed also reshuffles the image-level split.
+
+\begin{table}[t]
+\centering
+\caption{ResNet-18 across three seeds; each seed also changes the image-level split.}
+\label{tab:seeds}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Seed} & \textbf{Accuracy} & \textbf{Macro-F1} & \textbf{MASD}$\downarrow$ \\
+\midrule
+42  & 0.807 & 0.745 & 0.277 \\
+7   & 0.807 & 0.802 & 0.398 \\
+123 & 0.795 & 0.789 & 0.289 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Discussion}
+
+\subsection{Answer to RQ1}
+
+Yes, with caveats: all three trained models beat the majority baseline by a wide margin, and their MASD values show that when they do err, the error tends to land close to the true stage rather than far from it. That is real evidence that six-stage classification is learnable from this kind of image. It says nothing, though, about generalization beyond the present image-level split — a different field or season is a genuinely open question.
+
+\subsection{Answer to RQ2}
+
+No. ResNet-18 has the best point estimates, but the gap to Small CNN does not survive multiple-comparison correction, so H2 is not supported. Part of the reason may be procedural rather than architectural: all three models share one training recipe rather than independently tuned hyperparameters, which plausibly hurts EfficientNet-B0 more than the others. The honest conclusion at this sample size is that all three learned models are viable pilot baselines — not that any one architecture has been shown to be best.
+
+\subsection{Answer to RQ3}
+
+H3 holds on the adjacency side and on the recall side. Most ResNet-18 errors are ordinally adjacent, which is the more benign failure mode and is part of why MASD is reported alongside accuracy in the first place. The reproductive stage is the clearest weak point, with recall well below every other class — though again, six test images is too few to separate a real weakness from noise. Overall, the constraint that dominates this pilot is the dataset, not the choice of architecture.
+
+\subsection{Implications for CropState}
+
+Within CropState, the stage distribution this pipeline produces is meant to serve as visual evidence for a later state estimator — but that is a claim about intended use, not something this pilot demonstrates. Nothing here shows that stage-conditioned retrieval, agronomic recommendations, or confidence-aware soft gating actually improve decision quality; testing that would require domain-reviewed knowledge chunks and relevance judgments from agricultural experts that this study does not have. That downstream evaluation is left out of scope on purpose.
+
+\section{Limitations and Future Work}
+\label{sec:limitations}
+
+Six limitations matter most here. Field, season, capture-session, and parent-image metadata are all missing, so the image-level split may leak across acquisition sessions or overlapping patches. Labels come from folder assignments and have not been checked against morphological criteria by an independent reviewer. The dataset is imbalanced, and the reproductive test subset is down to six images. All three learned models share one set of hyperparameters rather than architecture-specific tuning. The multi-seed check conflates split variability with initialization variability, since each seed changes both. And the corpus has not been through a documented image-quality or duplicate audit.
+
+Closing these gaps, in rough priority order, means recovering or collecting parent-image, field, session, and season identifiers; grouping related patches and burst images into the same split; independently reviewing a meaningful labeled subset; rebalancing the rare stages; tuning each architecture on its own validation curve rather than sharing one recipe; applying temperature scaling with held-out logits; and running a single, locked evaluation on a field- or season-held-out test set. Connecting this vision output to expert-reviewed, stage-aware retrieval should wait until those steps are done.
+
+\section{Ethical Considerations}
+
+Farm images can reveal location, farm layout, or other information the grower may not want disclosed, so any public release should strip personal identifiers and precise geolocation unless the source has explicitly consented to that disclosure. The model itself is meant to be a research component feeding into a larger decision-support pipeline, not an autonomous authority on agronomic decisions. Low-confidence predictions should prompt a request for a better image or an uncertainty flag, not a definitive-sounding recommendation.
+
+\section{Conclusion}
+
+CropState-Vision set out to check something narrow: whether six BBCH-derived rice growth stages can be told apart from field images at all. On the evidence gathered here, the answer is yes — Small CNN, ResNet-18, and EfficientNet-B0 all clear the majority baseline by a wide margin, with ResNet-18 ahead on point estimates, though not by a margin that survives correction for multiple comparisons against the other two. Most of ResNet-18's mistakes land on a neighboring stage rather than a distant one, which is encouraging, while the reproductive class — the rarest in the collection — remains the model's clearest blind spot. None of this amounts to a system ready for the field: missing acquisition metadata, a real risk of split leakage, class imbalance, unreviewed labels, shared rather than per-model hyperparameters, and calibration that is not yet trustworthy all stand between this pilot and a deployable one. Stage-aware retrieval, the piece that would make CropState-Vision useful for actual decision support, stays future work until an agricultural expert can be brought in to validate it — this paper does not claim to have done that.
+
+\bibliographystyle{splncs04}
+\bibliography{references}
+
+\end{document}
